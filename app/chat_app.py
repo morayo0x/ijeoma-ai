@@ -231,6 +231,18 @@ def build_app(model, router: Router) -> gr.Blocks:
             return f"{format_list(route)}\n\nReply with a number or a name to hear more."
         if route.kind == "help":
             return HELP_TEXT
+        if route.kind == "countries":
+            state["pending"] = [d.passage_id for d in route.choices]
+            rows = "\n".join(
+                f"{i}. **{d.name}**: {label or 'see the country guide'}"
+                for i, (d, label) in enumerate(zip(route.choices, route.labels, strict=True), 1)
+            )
+            return (
+                f"I cover these {len(route.choices)} West African countries. Next to each are "
+                f"the places it is best known for in my sources:\n\n{rows}\n\n"
+                "Reply with a number or a country to hear more, or ask, for example, "
+                "*compare Ghana and Senegal* or *what food should I try in Mali?*"
+            )
         if route.kind == "smalltalk":
             return SMALL_TALK_TEXT
         if route.kind == "non_english":

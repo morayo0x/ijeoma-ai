@@ -618,3 +618,25 @@ def test_asking_for_my_name(router, kakum, message):
 
 def test_introduction_mid_conversation_is_not_a_follow_up(router, kakum):
     assert router.route("my name is john hicks", kakum, []).kind == "introduce"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "give me countries in west-africa, and tell me what specific thing they are popular for?",
+        "Which countries are in West Africa?",
+        "What countries do you cover?",
+    ],
+)
+def test_country_list(guided, message):
+    route = guided.route(message, None, [])
+    assert route.kind == "countries" and len(route.choices) == 16
+    assert all(route.labels)
+
+
+def test_country_list_items_can_be_picked_and_compared(guided):
+    countries = guided.route("Which countries are in West Africa?", None, []).choices
+    ghana = next(i for i, g in enumerate(countries, 1) if g.name == "Ghana")
+    assert guided.route(str(ghana), None, countries).destination.name == "Ghana"
+    route = guided.route("compare Ghana and Senegal", None, countries)
+    assert route.kind == "compare" and [g.name for g in route.choices] == ["Ghana", "Senegal"]

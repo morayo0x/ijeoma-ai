@@ -74,6 +74,12 @@ INTRODUCTION = re.compile(
     r"([A-Za-zÀ-ÿ][\w'-]{1,30}(?:\s+[A-Za-zÀ-ÿ][\w'-]{1,30}){0,2})\s*[.!]?\s*$",
     re.I,
 )
+COUNTRY_LIST = re.compile(
+    r"\b(which|what|list|name|give me|show me|all)\b.{0,40}\b(countries|nations)\b|"
+    r"\b(countries|nations)\b.{0,30}\b(in|of) west[- ]?africa\b|"
+    r"\b(countries|nations)\b.{0,30}\b(do you|you) (cover|know)\b",
+    re.I,
+)
 ASK_NAME = re.compile(
     r"\b(what'?s my name|what is my name|do you (remember|know|recall) (my name|me|who i am)|"
     r"who am i|remember me|my name\?)",
@@ -306,9 +312,12 @@ THEME_GROUPS = {
 }  # fmt: skip
 PERSON = re.compile(
     r"\bwas an? [\w\s\"-]{0,40}\b(woman|man|women|merchant|trader|signare|signara|"
-    r"businesswoman|businessperson|slaver|historian|businessman|ruler|queen|king)\b"
-    # Lifespan right after the name, then "was": "X (c. 1615 – after 1670) was ..."
-    r"|^[^.(]{0,80}\((c\.\s*)?\d{3,4}\s*[–-][^)]*\),?\s+(was|is)\b"
+    r"businesswoman|businessperson|slaver|historian|businessman|ruler|queen|king|cleric|"
+    r"strategist|founder|emperor|leader|chief|warrior|politician|writer|poet|artist|"
+    r"musician|soldier|general|explorer|missionary|scholar)\b"
+    # Lifespan right after the name, then "was" (possibly after aliases):
+    # "X (c. 1615 – after 1670) was ...", "X (c. 1830 – June 2, 1900), also known as Y, was ..."
+    r"|^[^.(]{0,80}\((c\.\s*)?\d{3,4}\s*[–-][^)]*\d{3,4}\)[^.]{0,160}\bwas\b"
     r"|^[^.(]{0,80}\(\s*[bd]\.[^)]*\),?\s+(was|is)\b"
     r"|^\w+s were [\w\s-]{0,40}\bwomen\b",
     re.I,
@@ -539,7 +548,7 @@ class Route:
     """How to answer one message."""
 
     kind: str  # answer | fact | fact_missing | which_place | choose | recommend | describe_list
-    #             introduce | ask_name
+    #             introduce | ask_name | countries
     #             out_of_scope | live | greeting | thanks | reset | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
@@ -1020,6 +1029,25 @@ class Router:
                 scored.append((score, in_corpus, guide))
         return max(scored, key=lambda x: (x[0], x[1]))[2] if scored else None
 
+    def country_highlights(self, country: str, k: int = 3) -> list[Destination]:
+        """A country's best-known places: World Heritage first, one per kind of place."""
+        pool = [
+            d
+            for d in self._places
+            if in_country(d, country) and d.theme not in ("Town or Area Guide", "")
+        ]
+        picks, themes = [], set()
+        for d in sorted(pool, key=lambda d: (d.world_heritage, len(d.passage)), reverse=True):
+            # Skip a second entry for the same place ("Royal Palaces of Abomey", "Abomey").
+            if any(d.distinctive & p.distinctive for p in picks):
+                continue
+            if d.theme not in themes:
+                picks.append(d)
+                themes.add(d.theme)
+            if len(picks) == k:
+                break
+        return picks
+
     def guide(self, country: str | None, facet: str) -> Destination | None:
         if not country:
             return None
@@ -1115,6 +1143,22 @@ class Router:
 
         if HELP.search(text):
             return Route("help")
+        if COUNTRY_LIST.search(text) and not mentioned_countries(text):
+            overviews = sorted(
+                (g for (_c, f), g in self.guides.items() if f == "overview"), key=lambda g: g.name
+            )
+            if overviews:
+                return Route(
+                    "countries",
+                    choices=overviews,
+                    labels=[
+                        ", ".join(
+                            d.name + (" (UNESCO)" if d.world_heritage else "")
+                            for d in self.country_highlights(g.country)
+                        )
+                        for g in overviews
+                    ],
+                )
         if is_non_english(text):
             return Route("non_english")
         if SMALL_TALK.search(text) and not self.index.mentioned_places(text):
