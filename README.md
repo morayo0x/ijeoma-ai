@@ -64,6 +64,7 @@ results/
   run1_smoke/                            first 200-example test run
 docs/
   DECISIONS.md                           every design decision, with reasons and evidence
+  CODE_WALKTHROUGH.md                    what each piece of code does, line by line
   capstone-proposal-ijeoma-ai_SUBMITTED.docx
 data/raw/                                original dataset bundle
 ```
