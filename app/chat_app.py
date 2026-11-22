@@ -182,9 +182,10 @@ def build_app(model, router: Router) -> gr.Blocks:
         if looks_like_description(message):
             return read_description(message, state)
         topic = current_topic(state)
+        # The last list shown stays available ("compare 1 and 3", "tell me about the last
+        # one") until a new list replaces it or the conversation is reset.
         pending = [by_id[i] for i in state["pending"]]
         route = router.route(message, topic, pending)
-        state["pending"] = []
 
         if route.kind == "introduce":
             state["user_name"] = route.place
@@ -222,7 +223,6 @@ def build_app(model, router: Router) -> gr.Blocks:
                 "Reply with a number or a name."
             )
         if route.kind == "describe_list":
-            state["pending"] = [d.passage_id for d in route.choices]
             return f"{format_list(route)}\n\nReply with a number or a name to hear more."
         if route.kind == "help":
             return HELP_TEXT
@@ -265,7 +265,8 @@ def build_app(model, router: Router) -> gr.Blocks:
             )
         if route.kind == "compare":
             state["topic"], state["history"] = None, []
-            state["pending"] = [d.passage_id for d in route.choices if d.passage_id in by_id]
+            if not all(d in pending for d in route.choices):
+                state["pending"] = [d.passage_id for d in route.choices if d.passage_id in by_id]
             parts = []
             for d in route.choices:
                 summary, _ = model.generate(prompts.summarize(d.passage, "One sentence"))

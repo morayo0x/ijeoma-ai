@@ -552,3 +552,44 @@ def test_general_country_questions_use_the_overview(guided, message, passage_id)
 
 def test_border_crossings_are_still_declined(guided):
     assert guided.route("Is the border crossing to Togo open?", None, []).kind == "out_of_scope"
+
+
+@pytest.fixture(scope="module")
+def ruins(router):
+    return router.route("i want to visit interesting ruins", None, []).choices
+
+
+def test_compare_list_items_by_number(router, ruins):
+    route = router.route("compare 1 and 2", None, ruins)
+    assert route.kind == "compare" and route.choices == ruins[:2]
+
+
+def test_compare_list_items_by_description(router, ruins):
+    route = router.route("compare ruins in burkina faso and kano city walls", None, ruins)
+    assert route.kind == "compare"
+    assert [d.name for d in route.choices] == [
+        "Ancient Ferrous Metallurgy Sites of Burkina Faso",
+        "Ancient Kano City Walls",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("message", "index"),
+    [("tell me about 2", 1), ("tell me more about the last one", -1), ("what about the third", 2)],
+)
+def test_tell_me_about_a_list_item(router, ruins, message, index):
+    route = router.route(message, None, ruins)
+    assert route.kind == "answer" and route.destination == ruins[index]
+
+
+def test_describe_selected_items(router, ruins):
+    route = router.route("describe 1 and 4", None, ruins)
+    assert route.kind == "describe_list" and route.choices == [ruins[0], ruins[3]]
+
+
+def test_distance_between_list_items(router, ruins):
+    assert router.route("how far is 1 from 3?", None, ruins).kind == "distance"
+
+
+def test_which_one_is_not_a_list_reference(router, ruins):
+    assert router.route("which one is the oldest?", None, ruins).kind != "compare"

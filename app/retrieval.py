@@ -760,6 +760,58 @@ def is_person(destination: Destination) -> bool:
     return bool(PERSON.search(destination.passage[:300]))
 
 
+ORDINALS = {
+    "first": 1, "second": 2, "third": 3, "fourth": 4, "fifth": 5, "sixth": 6,
+    "1st": 1, "2nd": 2, "3rd": 3, "4th": 4, "5th": 5, "6th": 6,
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6,
+}  # fmt: skip
+TELL_ABOUT = re.compile(
+    r"\b(tell me (more )?about|more (on|about)|what about|go with|choose|pick)\b", re.I
+)
+
+
+def referenced_items(message: str, pending: list) -> list:
+    """List items a message refers to, in the order mentioned.
+
+    Recognises numbers ("1 and 2"), positions ("the first one", "the last"), part of
+    a name ("Kano city walls") and a country when one item comes from it.
+    """
+    if not pending:
+        return []
+    text = normalise(message)
+    words = tokens(message)
+    found: list[tuple[int, object]] = []
+
+    def add(position, item):
+        if item not in [i for _, i in found]:
+            found.append((position, item))
+
+    for match in re.finditer(r"\b(\d{1,2})\b", text):
+        n = int(match.group(1))
+        if 1 <= n <= len(pending):
+            add(match.start(), pending[n - 1])
+    for match in re.finditer(r"\b(\w+)\b", text):
+        word = match.group(1)
+        if word in ORDINALS and ORDINALS[word] <= len(pending) and not word.isdigit():
+            if word in ("one", "two", "three", "four", "five", "six") and not re.search(
+                rf"\b(number|option|item|no\.?)\s+{word}\b", text
+            ):
+                continue  # "one" is usually not a list reference ("which one", "one day")
+            add(match.start(), pending[ORDINALS[word] - 1])
+        if word == "last":
+            add(match.start(), pending[-1])
+    msg = set(words)
+    for item in pending:
+        distinctive = {t for t in item.distinctive if len(t) > 3}
+        if distinctive and len(distinctive & msg) >= max(1, len(distinctive) - 1):
+            add(min(text.find(t) for t in distinctive & msg), item)
+    for country in mentioned_countries(message):
+        in_it = [i for i in pending if in_country(i, country)]
+        if len(in_it) == 1:
+            add(text.find(country.split()[0]), in_it[0])
+    return [item for _, item in sorted(found, key=lambda x: x[0])]
+
+
 def is_non_english(message: str) -> bool:
     words = tokens(message)
     hits = sum(w in NON_ENGLISH_WORDS for w in words)
@@ -1014,6 +1066,15 @@ class Router:
             return Route("introduce", place=intro.group(1).capitalize())
 
         describe = bool(DESCRIBE_EACH.search(text))
+        refs = referenced_items(text, pending)
+        if len(refs) >= 2 and COMPARE.search(text):
+            return Route("compare", choices=refs[:2])
+        if len(refs) >= 2 and DISTANCE.search(text):
+            return Route("distance", choices=refs[:2])
+        if refs and (describe or re.search(r"\bdescri\w*", text, re.I)):
+            return Route("describe_list", choices=refs, describe=True)
+        if len(refs) == 1 and TELL_ABOUT.search(text):
+            return Route("answer", refs[0], new_topic=True)
         if pending and describe and not (requested_themes(text) or requested_subjects(text)):
             return Route("describe_list", choices=pending, describe=True)
 
