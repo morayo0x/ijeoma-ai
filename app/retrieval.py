@@ -73,6 +73,53 @@ RECOMMEND = re.compile(
     re.I,
 )
 
+RESET = re.compile(
+    r"\b(start (again|over|afresh)|restart|reset|begin again|new (conversation|search|chat)|"
+    r"forget (that|it|this|everything)|clear (that|it|this|the chat)|from (the )?(start|beginning|scratch))\b",
+    re.I,
+)
+# A change of request: "actually", "instead", "rather", "something else".
+CHANGE = re.compile(
+    r"\b(actually|instead|rather|something else|change|different|now i want)\b", re.I
+)
+
+# Specific things a traveller asks to see. A recommendation must mention one of
+# these words in the destination's name or description, not merely share a theme.
+SUBJECTS = {
+    "waterfall": ("waterfall", "waterfalls", "falls", "cascade", "cascades", "chutes"),
+    "ruins": ("ruins", "ruin", "archaeological", "excavation", "excavations", "ancient"),
+    "beach": ("beach", "beaches", "praia", "plage"),
+    "lake": ("lake", "lakes", "lagoon"),
+    "mountain": ("mountain", "mountains", "mount", "mont", "monte", "peak", "plateau", "hills"),
+    "cave": ("cave", "caves", "grotto"),
+    "island": ("island", "islands", "islet", "ilha", "ilheu", "ile"),
+    "museum": ("museum", "museums", "musee", "museu", "gallery"),
+    "mosque": ("mosque", "mosques"),
+    "fort": ("fort", "forts", "fortress", "castle", "castles", "forte", "fortaleza"),
+    "palace": ("palace", "palaces"),
+    "river": ("river", "rivers"),
+    "forest": ("forest", "forests", "rainforest"),
+    "zoo": ("zoo",),
+    "market": ("market", "markets"),
+}  # fmt: skip
+SUBJECT_TRIGGERS = {
+    "waterfall": ("waterfall", "waterfalls", "falls", "cascade"),
+    "ruins": ("ruins", "ruin", "archaeology", "archaeological", "ancient"),
+    "beach": ("beach", "beaches", "seaside"),
+    "lake": ("lake", "lakes", "lagoon"),
+    "mountain": ("mountain", "mountains", "hills", "hiking", "climb", "climbing"),
+    "cave": ("cave", "caves"),
+    "island": ("island", "islands"),
+    "museum": ("museum", "museums", "gallery", "galleries"),
+    "mosque": ("mosque", "mosques"),
+    "fort": ("fort", "forts", "castle", "castles"),
+    "palace": ("palace", "palaces"),
+    "river": ("river", "rivers"),
+    "forest": ("forest", "forests", "rainforest"),
+    "zoo": ("zoo",),
+    "market": ("market", "markets"),
+}  # fmt: skip
+
 # Words in a request mapped to the dataset's theme labels.
 THEME_KEYWORDS = {
     "Coast & Beach": ("beach", "beaches", "coast", "coastal", "sea", "seaside", "ocean"),
@@ -148,7 +195,7 @@ class Destination:
 class Route:
     """How to answer one message."""
 
-    kind: str  # answer | choose | recommend | out_of_scope | greeting | thanks | not_found
+    kind: str  # answer | choose | recommend | out_of_scope | greeting | thanks | reset | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
     new_topic: bool = False
@@ -276,6 +323,19 @@ def requested_themes(message: str) -> set[str]:
     return themes
 
 
+def requested_subjects(message: str) -> set[str]:
+    msg = set(tokens(message))
+    return {subject for subject, words in SUBJECT_TRIGGERS.items() if msg & set(words)}
+
+
+def mentions_subject(destination: Destination, subjects: set[str]) -> int:
+    """2 if the name mentions a requested subject, 1 if only the description does, else 0."""
+    words = {w for s in subjects for w in SUBJECTS[s]}
+    if set(destination.name_tokens) & words:
+        return 2
+    return 1 if set(tokens(destination.passage[:1500])) & words else 0
+
+
 def is_person(destination: Destination) -> bool:
     return bool(PERSON.search(destination.passage[:300]))
 
@@ -300,16 +360,32 @@ class Router:
         self.min_search_score = min_search_score
         self._places = [d for d in index.destinations if not is_person(d) and len(d.passage) >= 600]
 
-    def recommend(self, country: str | None, themes: set[str], k: int = 5) -> list[Destination]:
-        """Notable destinations for a country and/or themes; World Heritage sites first."""
+    def recommend(
+        self, country: str | None, themes: set[str], subjects: set[str] = frozenset(), k: int = 5
+    ) -> list[Destination]:
+        """Notable destinations for a country, themes and/or specific subjects.
+
+        Specific subjects ("waterfall", "ruins") must appear in the destination's
+        name or description; World Heritage sites and richer descriptions rank first.
+        """
         pool = self._places
         if country:
             pool = [d for d in pool if country.split()[0] in normalise(d.country)]
-        if themes:
+        if subjects:
+            pool = [d for d in pool if mentions_subject(d, subjects)]
+        elif themes:
             pool = [d for d in pool if d.theme in themes]
         elif not country:
             pool = [d for d in pool if d.theme != "Town or Area Guide"]
-        ranked = sorted(pool, key=lambda d: (d.world_heritage, len(d.passage)), reverse=True)
+
+        def rank(d):
+            return (
+                mentions_subject(d, subjects) if subjects else 0,
+                d.world_heritage,
+                len(d.passage),
+            )
+
+        ranked = sorted(pool, key=rank, reverse=True)
         if country:
             return ranked[:k]
         picks, seen = [], set()  # one per country, for a spread across the region
@@ -323,6 +399,9 @@ class Router:
 
     def route(self, message: str, topic: Destination | None, pending: list[Destination]) -> Route:
         text = message.strip()
+
+        if RESET.search(text):
+            return Route("reset")
 
         # A reply to a "which one did you mean?" list: a number or a name.
         if pending:
@@ -359,10 +438,22 @@ class Router:
             return Route("out_of_scope")
 
         themes = requested_themes(text)
-        if RECOMMEND.search(text) or (themes and not new_place and (not topic or new_country)):
-            if not country and topic and not themes:
+        subjects = requested_subjects(text)
+        # A request for a kind of place replaces the current destination unless that
+        # destination already matches it ("is there a waterfall?" about a falls).
+        topic_matches = bool(topic) and (
+            (subjects and mentions_subject(topic, subjects) == 2)
+            or (not subjects and themes and topic.theme in themes)
+        )
+        wants_new_kind = bool(themes or subjects) and not topic_matches
+        if RECOMMEND.search(text) or (
+            wants_new_kind
+            and not new_place
+            and (not topic or new_country or CHANGE.search(text) or not REFERS_BACK.search(text))
+        ):
+            if not country and topic and not (themes or subjects):
                 country = normalise(topic.country)  # "anything else interesting?" near here
-            picks = self.recommend(country, themes)
+            picks = self.recommend(country, themes, subjects)
             if picks:
                 return Route("recommend", choices=picks)
 

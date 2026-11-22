@@ -72,6 +72,9 @@ def build_app(model, router: Router) -> gr.Blocks:
         route = router.route(message, topic, pending)
         state["pending"] = []
 
+        if route.kind == "reset":
+            state.update(new_state())
+            return "Sure, let's start again. " + WELCOME.split("! ", 1)[1]
         if route.kind == "greeting":
             return WELCOME
         if route.kind == "thanks":
@@ -79,6 +82,8 @@ def build_app(model, router: Router) -> gr.Blocks:
         if route.kind == "not_found":
             return NOT_FOUND
         if route.kind == "recommend":
+            # A new kind of place was requested: let go of the previous destination.
+            state["topic"], state["history"] = None, []
             state["pending"] = [d.passage_id for d in route.choices]
             options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
             return (
