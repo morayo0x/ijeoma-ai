@@ -54,7 +54,6 @@ fabricates in most cases, which is why every prompt supplies the source passage
 app/                         Gradio demo: Workbench, Chat and Compare pages
 data/raw/                    original dataset bundle
 docs/
-  DECISIONS.md               design decisions, with rationale and evidence
   COLAB_DEMO.md              step-by-step guide to the Colab demo
   capstone-proposal-ijeoma-ai_SUBMITTED.docx
 evaluation/
@@ -295,9 +294,6 @@ rate, ROUGE-1/L, BERTScore and an LLM-judge rubric. The primary metric,
 answers and summaries that the source passage supports. A separate adversarial
 set measures fabrication when no passage is given.
 
-The rationale for each design choice is recorded in
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
-
 ---
 
 ## Data
@@ -329,13 +325,13 @@ Build statistics: [`pipeline/out/build_report.json`](pipeline/out/build_report.j
 
 ## Deviations from the proposal
 
-| Submitted proposal | This work | Reference |
+| Submitted proposal | This work | Reason |
 |---|---|---|
-| Gemma 4 E4B with QLoRA | Gemma 3 1B with LoRA, full precision | D-18 |
-| No external retrieval | Source passage supplied in every prompt | D-02 |
-| Text, image and tabular data | Text only | — |
-| Each passage sent to the teacher once | 1,026 passages; 486 sent two or three times | D-17 |
-| Model Card, Data Card, hosted demo | Demo application built; cards pending | D-23 |
+| Gemma 4 E4B with QLoRA | Gemma 3 1B with LoRA, full precision | Fine-tunes on a single free T4 without quantisation; the smallest model that meets the targets |
+| No external retrieval | Source passage supplied in every prompt | Without a source, the model fabricated answers in 95% of cases |
+| Text, image and tabular data | Text only | Project timeline |
+| Each passage sent to the teacher once | 1,026 passages; 486 sent two or three times | Digests, question-answer pairs and dialogues used separate prompts |
+| Model Card, Data Card, hosted demo | Demo application built; cards pending | Project timeline |
 
 ## Limitations
 
@@ -359,3 +355,4 @@ is subject to the [Gemma Terms of Use](https://ai.google.dev/gemma/terms).
 ## Authors
 
 Prof Chika Yinka-Banjo · John Hicks · Usman Kolawole — University of Lagos
+
