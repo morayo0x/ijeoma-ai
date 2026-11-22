@@ -288,3 +288,14 @@ Status values: `active` · `superseded by D-nn` · `open`.
 - **Note:** v0.3 is v0.2 plus this path change only. The earlier experiment log
   stays in `results/`; the new folder starts a fresh `ijeoma_experiment_log.csv`.
 - **Status:** active
+
+## D-20 · Run the LLM judge offline, not in Colab
+- **Date:** 22 Nov 2026
+- **Decision:** The eval CSVs now store each item's full prompt (`input`
+  column). The judge and `claims_supported_rate` are computed afterwards from
+  those CSVs using the team's OpenAI key, so Colab needs no OpenAI key. If one
+  is present in Colab Secrets the notebook still runs the judge itself.
+- **Why:** Keys must not be pasted into a notebook in a shared Drive folder,
+  and Colab Secrets are per Google account, so every person running the
+  notebook would otherwise need their own OpenAI key.
+- **Status:** active
