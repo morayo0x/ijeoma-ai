@@ -136,7 +136,7 @@ A summary of deviations from the submitted proposal is at the
   openai`). The Gemini code path is retained.
 - **Rationale:** The planned Gemini pass had not run (4 of 2,502 examples came
   from the teacher, including 3 digests). An OpenAI model was available.
-- **Consequences:** Departs from the teacher named in the draft proposal.
+- **Consequences:** Departs from the originally planned teacher (Gemini).
   Prompts and validation rules are unchanged.
 - **Sizing:** 600 digest, 400 question-answer and 400 dialogue passages, with
   25% over-generation: 1,741 API calls.
