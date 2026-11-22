@@ -316,3 +316,22 @@ Status values: `active` · `superseded by D-nn` · `open`.
   limitations. A later rebuild should tighten the listing filter and review
   terrain rules.
 - **Status:** open
+
+## D-22 · Run 2 results: success criterion met; invention still high
+- **Date:** 22 Nov 2026
+- **Run:** full data (6,522 examples), 1 epoch, rank 8, lr 2e-4. Loss 0.027,
+  val loss 0.028 (no sign of overfitting).
+- **Headline:** 97.4% of claims in answers, digests and summaries are supported
+  by the source passage (base model 86.0%), against the proposal's 90%
+  target. Refusal recall 0.44 → 0.92 with false refusals unchanged at 0.03.
+  Theme accuracy 0.125 → 0.75 (8 items). Full table: `results/run2_full/RESULTS.md`.
+- **Judge run offline** (D-20). The eval CSVs lacked prompts (the run used the
+  first v0.3 upload); the test order was rebuilt from seed 812 and verified
+  100/100 against the saved reference answers before judging.
+- **Limitations to report:** classification n=8 and digest n=2; helpfulness
+  flat (3.81 → 3.76); 30% of tuned outputs copy the reference; judge shares a
+  model family with the teacher; invention rate without a passage 0.65
+  (from 0.95) — the model still answers from memory or invents when given no
+  source, which supports the passage-in-prompt design (D-02) and argues for
+  retrieval in any deployment.
+- **Status:** active

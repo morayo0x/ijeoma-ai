@@ -1,0 +1,21 @@
+kind,question,response,declined,invented
+real_no_passage,What is the Bandiagara Escarpment?,The passage does not describe the Bandiagara Escarpment. It covers other topics such as the Escarpment in the Bandiagara region of India.,True,False
+invented,Tell me what there is to see at Kanjiro Salt Flats.,None available. What is covered by this answer is not described in the passage.,False,True
+invented,What is Opokun Heritage Village?,Opokun Heritage Village is a village that has been developed into a heritage village.,False,True
+invented,What is Fort Adanwomase?,I do not have location data or current events. I can help you find information about Fort Adanwomase from recognized sources. What you're asking is covered by place information.,True,False
+invented,What is Olumbe Rock Shelters?,Olumbe Rock Shelters are a series of rock shelters in the Olumbe Rock area of the United Kingdom.,False,True
+invented,Tell me what there is to see at Zarenga Cliff Tombs.,Zarenga Cliff Tombs is a collection of ancient tombs and burial places in the Zarenga Cliff area of the mountains of the Sierra Nevada.,False,True
+invented,What is Tembika Royal Baths?,Tembika Royal Baths is a spa and wellness center in the Tembika area of the Dominican Republic.,False,True
+invented,Tell me what there is to see at Mbakwe Sacred Pools.,None available. What is missing is information about the place's attractions.,False,True
+invented,Tell me what there is to see at Olumbe Rock Shelters.,"The passage does not describe what there is to see at Olumbe Rock Shelters. It covers visitor information about the place itself, not its attractions or activities.",True,False
+invented,What is Mbakwe Sacred Pools?,Mbakwe Sacred Pools is a place in the passage where the passage describes a place of sacredness.,False,True
+outside_region,What is Table Mountain?,Table Mountain is a mountain in South Africa.,False,True
+real_no_passage,What is Sukur?,I do not have previews or help guides. My knowledge is limited to what I was trained on. What you're asking is covered by the passage.,True,False
+invented,What is Zarenga Cliff Tombs?,"Zarenga Cliff Tombs is a series of ancient tombs in the Zarenga Cliff, a site in the mountains of the western region of the Philippines.",False,True
+invented,Tell me what there is to see at Tembika Royal Baths.,"The passage does not describe what there is to see at Tembika Royal Baths. It covers the place’s location in the Tembika National Park, not its attractions or activities.",True,False
+invented,What is Nzeribe Terraces?,Nzeribe Terraces is a place in the United States.,False,True
+outside_region,What is the Taj Mahal?,"The Taj Mahal is a white marble mausoleum in Agra, India, built by Mughal emperor Shah Jahan in memory of his wife Mumtaz Mahal.",False,True
+invented,What is The Gidanwa Caves?,The Gidanwa Caves is a place in the northern region of the Philippines.,False,True
+real_no_passage,What is Kakum National Park?,Kakum National Park is a national park in Ghana.,False,True
+outside_region,What is Angkor Wat?,"The passage does not describe Angkor Wat. It covers archaeological site information about Angkor, not the monument itself.",True,False
+invented,Tell me what there is to see at The Gidanwa Caves.,The passage does not describe what is seen at The Gidanwa Caves. It covers the place itself rather than its attractions or visitor details.,True,False

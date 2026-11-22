@@ -1,0 +1,68 @@
+row,task,factual_accuracy,cultural_nuance,helpfulness,claims_total,claims_supported,unsupported
+1,answer,3,4,2,3,3,[]
+2,summarize,2,4,3,9,5,"[""The museum was originally established by Charles Thurstan Shaw."", ""The museum was funded by the Gold Coast Public Works Department."", ""The museum includes artifacts from Akan culture."", ""The museum’s collection has expanded over time.""]"
+3,summarize,2,3,3,15,12,"[""Keran is the central hub of Nouadhibou."", ""Nouadhibou has a burgeoning port area."", ""Nouadhibou has a rich history.""]"
+5,digest,2,3,3,12,9,"[""KAR was once a haven for seabirds and sea turtles."", ""Sea levels could exceed 2100 levels by the end of the century under high emissions scenarios."", ""Protecting this area is crucial for biodiversity and coastal resilience.""]"
+7,answer,5,5,5,5,5,[]
+8,answer,5,5,4,4,4,[]
+9,answer,5,5,4,8,8,[]
+12,summarize,2,4,3,7,3,"[""Furnya Forest Park is a sizable forest park"", ""Furnya Forest Park offers a scenic area"", ""Furnya Forest Park is approximately 4 kilometers long"", ""Furnya Forest Park is 2.7 wide""]"
+13,summarize,5,5,5,11,11,[]
+14,answer,5,5,1,1,1,[]
+16,answer,2,4,2,5,4,"[""Kunta Kinteh Island is located on the island.""]"
+18,summarize,4,4,5,5,3,"[""Whispering Rocks and Shrines of Tongo are a unique location."", ""Whispering Rocks and Shrines of Tongo are historically significant.""]"
+20,answer,3,4,4,8,6,"[""It has a significant ecosystem dependent on the amount of flooding it receives."", ""It is a key area for agriculture.""]"
+22,answer,1,2,1,3,3,[]
+23,answer,4,5,2,2,2,[]
+24,answer,2,2,3,19,8,"[""Bolewa"", ""Kanuri"", ""Hausa people"", ""Cham people"", ""Dadiya people"", ""Jara people"", ""Kamo people"", ""Pero people"", ""Tangale people"", ""Tera people"", ""Waja people""]"
+26,summarize,4,4,5,7,7,[]
+27,answer,5,5,5,3,3,[]
+28,answer,2,4,1,4,3,"[""The passage doesn’t describe anything particularly notable about Podor itself.""]"
+31,summarize,3,4,4,13,12,"[""Oba Hills National Park is a significant forest reserve.""]"
+32,answer,5,5,4,5,5,[]
+33,summarize,5,5,5,4,4,[]
+34,digest,3,4,4,9,8,"[""It was used primarily for civil purposes before falling into disrepair in 1930.""]"
+35,summarize,4,4,4,5,5,[]
+36,answer,2,3,2,5,5,[]
+37,answer,2,2,4,8,8,[]
+38,answer,4,4,3,7,7,[]
+42,summarize,4,5,4,4,4,[]
+43,answer,5,5,5,1,1,[]
+44,answer,4,4,4,6,5,"[""Okeluse Forest Reserve is a significant area.""]"
+45,answer,5,5,5,2,2,[]
+46,answer,4,3,4,7,7,[]
+47,answer,1,4,2,4,1,"[""The places mentioned are Djenné, Mopti, Sévaré, and Bani."", ""Djenné is known for agricultural products such as cattle, pearl millet, and rice."", ""Djenné is a haven for birds.""]"
+50,summarize,2,4,3,7,5,"[""The area was historically significant for trade and resource extraction."", ""Ada was initially established as a Dutch trading center.""]"
+51,summarize,3,4,4,7,5,"[""Ilhéu Rabo de Junco serves as a crucial nesting ground for sea turtles and seabirds."", ""The bay encompasses a significant portion of the island’s coastline and marine habitat.""]"
+52,summarize,3,4,4,11,11,[]
+53,answer,5,5,5,1,1,[]
+55,answer,5,5,2,1,1,[]
+56,answer,5,5,5,5,5,[]
+57,answer,5,5,5,3,3,[]
+60,answer,5,5,5,1,1,[]
+61,summarize,2,4,4,8,7,"[""Over 80% of its animals were deceased.""]"
+62,answer,5,5,5,1,1,[]
+63,answer,5,5,5,5,5,[]
+66,summarize,2,4,3,7,4,"[""Owo has a long tradition of cultural and artistic influence."", ""Owo is a significant center."", ""Owo is now a national monument.""]"
+68,summarize,4,3,4,7,6,"[""Bokin has a peaceful, rural existence.""]"
+69,summarize,4,4,4,7,5,"[""The museum is renowned."", ""The museum is an architectural museum.""]"
+71,summarize,5,5,5,5,5,[]
+72,summarize,4,4,4,17,14,"[""Karaga is a vital center for the Dagbon community."", ""Hausa is the main language in Karaga."", ""Karaga has significant cultural heritage.""]"
+74,answer,5,5,5,3,3,[]
+75,answer,2,5,1,1,1,[]
+76,answer,5,5,5,7,7,[]
+77,summarize,5,4,5,7,7,[]
+78,summarize,3,4,3,6,5,"[""The region has a rich natural environment.""]"
+79,summarize,4,4,4,16,16,[]
+81,answer,5,5,4,2,2,[]
+85,summarize,3,4,4,15,12,"[""Ho is vibrant and culturally rich."", ""Ho offers travelers an opportunity to experience authentic Ghanaian life."", ""The town is home to the Adaklu Mountain Eco-Tourism Committee.""]"
+86,summarize,5,5,5,7,7,[]
+87,answer,5,5,4,2,2,[]
+88,summarize,4,4,4,10,9,"[""The park is known for its unique rivers.""]"
+89,answer,5,5,5,1,1,[]
+90,answer,5,5,5,1,1,[]
+91,answer,5,5,4,3,3,[]
+93,answer,5,5,4,4,4,[]
+94,answer,1,3,1,3,3,[]
+97,summarize,5,5,5,5,5,[]
+99,answer,5,5,5,2,2,[]

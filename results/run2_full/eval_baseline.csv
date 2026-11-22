@@ -1,0 +1,254 @@
+task,subtype,country,pred,ref,json_ok,hit_country,hit_theme,hit_terrain,hit_traveler_profile,pred_theme,true_theme,grounded,rouge_l,refused,gold_refusal
+classify,,Nigeria,"```json
+{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Nature & Wildlife"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,True,False,Nature & Wildlife,Town or Area Guide,,,,
+answer,dialogue_turn1,Senegal,"The passage states that Hope Booker was a successful woman despite the Atlantic slave trade, and she became a signare through John Booker, whom she had been enslaved to until his death.",Hope (Esperança) Booker was a Gambian woman who rose from child slavery to become a prominent figure in the Royal African Company's sphere of trade. She left behind a legacy as a successful woman despite the Atlantic slave trade.,,,,,,,,True,0.28169014084507044,False,False
+summarize,summary,Ghana,"Here’s a summary of the passage in two or three sentences:
+
+The National Museum of Ghana, established in 1957, is the largest and oldest museum in the country, housing an impressive collection of archaeology, ethnography, and fine art.  Originally established by Charles Thurstan Shaw and funded by the Gold Coast Public Works Department, the museum’s collection originated from the anthropology museum at Achimota College and includes artifacts from Akan culture.  The museum’s collection has expanded over time, including exhibits on the history of the transatlantic slave trade.","The National Museum, also known as the National Museum of Ghana, is a museum located in Accra, Ghana. Established in 1957, it is the largest and oldest of the six museums under the administration of the Ghana Museums and Monuments Board (GMMB). The museum closed in 2015 for restoration until eventually reopening in 2022.",,,,,,,,False,0.2836879432624113,False,False
+summarize,summary,Mauritania,"Nouadhibou, Mauritania’s second-largest city, is a significant economic and industrial center, primarily focused on fishing and supported by industries like iron mining and a growing port. The city boasts a diverse range of districts, including the French-built Cansado area for workers, the central hub of Keran and Numerwatt, and the burgeoning port area.  It’s a place with a rich history, including the Jackal well and a rapidly developing infrastructure, and is strategically located near the Banc d'Arguin national park.","Nouadhibou is the second largest city in Mauritania. It's a major fishing centre and large industrial port. Since independence in 1960, it has been called Nouadhibou, which means Place of the Jackal.",,,,,,,,False,0.12612612612612611,False,False
+refuse,scope_visa,Benin,I cannot answer the question using only the passage provided.,I cannot advise on visa requirements. They depend on your nationality and change without notice - check the Benin immigration authority or your nearest embassy. What I can do is describe documented destinations in Benin and answer questions about them from their sources.,,,,,,,,,,True,True
+digest,teacher_digest,Senegal,"**Kalissaye Avifaunal Reserve (KAR)** – a small, protected nature reserve in Senegal – offers a unique glimpse into the Casamance River ecosystem. Created in 1978, KAR boasts diverse wildlife, including over 10,000 Caspian terns and royal terns, and several sea turtle species like loggerheads and green turtles.  The reserve, currently closed due to the Casamance Conflict, was once a haven for seabirds and sea turtles.  However, its future is threatened by rising sea levels, potentially exceeding 2100 levels by the end of the century under high emissions scenarios.  Protecting this vital area is crucial for biodiversity and coastal resilience.","Kalissaye Avifaunal Reserve is a small nature reserve in Senegal at the mouth of Kalissaye Pond in the middle of the Casamance River. It is closed because of the Casamance Conflict. The reserve was created in 1978 to protect sea turtle and seabird colonies. Visitors would see small sandy islands with coastal plants, and wildlife including Caspian terns, royal terns, great white pelicans, loggerhead and green turtles, common dolphins, and African manatees. It is also listed as a natural heritage site threatened by flooding and coastal erosion.",,,,,,,,False,0.24731182795698925,False,False
+refuse,teacher_abstain,Guinea,The passage does not mention any facilities available for visitors staying overnight in the park.,"The source does not cover visitor facilities or accommodation. It does describe the park’s location, size, rivers, rainfall, habitats, and wildlife.",,,,,,,,,,True,True
+answer,dialogue_turn2,Cape Verde,"The passage states that the lagoons are of great ecological value for birds as they contain fresh or only slightly brackish water, and they have been recognised as a wetland of international importance by designation under the Ramsar Convention since 2005.",The lagoons are of great ecological value for birds as they contain fresh or only slightly brackish water. They have been recognised as a wetland of international importance by designation under the Ramsar Convention since 2005.,,,,,,,,True,0.9090909090909091,False,False
+answer,dialogue_turn2,Senegal,"The passage states that the Saloum Delta contains “brackish channels encompassing over 200 islands and islets, mangrove forest, an Atlantic marine environment, and dry forest.”","The site contains ""brackish channels encompassing over 200 islands and islets, mangrove forest, an Atlantic marine environment, and dry forest."" Aside from being a valued breeding ground for birds, the delta contains 218 shellfish mounds and artefacts unearthed at some 28 of the burial grounds have provided an important insight into the history of human occupation in the area.",,,,,,,,True,0.40476190476190477,False,False
+answer,dialogue_turn1,Togo,"The German Cemetery of Lomé is a historic cemetery in Lomé, Togo, associated with the period of German colonial rule. It contains graves of missionaries, merchants and members of the German colonial administration, as well as several Togolese figures. The oldest known burial is that of a person who died in 1889 and whose remains were later transferred to the site.","The German Cemetery of Lomé is a historic cemetery in Lomé, Togo, associated with the period of German colonial rule. It contains graves of missionaries, merchants and members of the German colonial administration, as well as several Togolese figures.",,,,,,,,True,0.78,False,False
+classify,,Guinea-Bissau,"```json
+{
+  ""country"": ""Guinea-Bissau"",
+  ""theme"": ""General Attraction"",
+  ""terrain"": ""Mountainous"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Guinea-Bissau"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Mountain or highland"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,True,General Attraction,Town or Area Guide,,,,
+refuse,teacher_abstain,Cape Verde,"The activities and facilities available for visitors at Costa da Fragata are:
+
+*   A 4.7 km long sandy beach which is a protected nature reserve.
+*   Important as nesting area for loggerhead sea turtles.",The source does not cover visitor activities or facilities. It only describes the location of Ponta da Fragata and notes that Costa da Fragata is a protected sandy beach and nesting area for loggerhead sea turtles.,,,,,,,,,,False,True
+summarize,one_sentence,The Gambia,"Furnya Forest Park is a sizable forest park in the Gambia, located south of Brikama, offering a scenic area approximately 4 kilometers long and 2.7 wide, accessible from the Brikama city center.",Furnya Forest Park is a forest park in the Gambia.,,,,,,,,False,0.4285714285714286,False,False
+summarize,summary,Mali,"Here’s a three-sentence summary of the destination, based on the provided text:
+
+The Muso Kunda Women’s Museum, established in 1995 by Adame Ba Konaré, is a Malian institution dedicated to celebrating and promoting the rights and contributions of women. The museum showcases traditional costumes, historical figures, and the evolving roles of women across various sectors, including politics and development. It aims to challenge stereotypes and foster a deeper understanding of Malian women’s impact on the nation.","The Muso Kunda Women's Museum, established in 1995, is an institution dedicated to showcasing and promote the cause of women in Mali. The Museum was founded by Malian feminist and historian Adame Ba Konaré in Bomako. The museum seeks to break stereotypes of women, celebrate their contributions, defend their rights and to create spaces for conversations.",,,,,,,,False,0.30303030303030304,False,False
+answer,teacher_qa,Nigeria,The passage does not contain information about whether anything of historical or industrial interest has been noted in Kagara.,"Yes. The passage says the town has a talc processing plant, and it also notes that remains of the Iron Age Nok culture have been found there.",,,,,,,,True,0.17391304347826086,True,False
+refuse,teacher_abstain,Togo,"To get to the memorial from central Lomé, go to the Place des Martyrs de Lomé II.",The source does not cover directions or transport to the site. It does say the memorial is located in the Lomé II administrative area of Lomé and is referred to as the Place des Martyrs de Lomé II.,,,,,,,,,,False,True
+answer,teacher_qa,The Gambia,"Kunta Kinteh Island is known as an important historical site in the Gambia River, 30 km (19 mi) from the river mouth and near Juffureh. It is located on the island.","Kunta Kinteh Island was formerly called James Island and St Andrew's Island. It is in the Gambia River, about 30 km from the river mouth and near Juffureh in the Republic of the Gambia.",,,,,,,,True,0.5230769230769231,False,False
+refuse,scope_security,Cape Verde,I cannot answer the question because there is no passage provided.,I cannot advise on current safety or security conditions. Check your government's official travel advice for Cape Verde. What I can do is describe documented destinations in Cape Verde and answer questions about them from their sources.,,,,,,,,,,True,True
+summarize,one_sentence,Ghana,"Whispering Rocks and Shrines of Tongo, in Ghana, are a unique and historically significant location where the rocks create eerie whistling sounds and serve as a place of religious rituals and ancestral worship.","Whispering rocks and Shrines of Tongo is found in Tengzug village, Ghana.",,,,,,,,True,0.26666666666666666,False,False
+refuse,dialogue_abstain,Cape Verde,The passage does not mention how to get to Moroços Natural Park. It only describes its location and characteristics.,"The source does not cover transport. It does cover that the park spans parts of the municipalities of Ribeira Grande and Porto Novo, and that its vegetation is diverse due to its location between the arid plateau and the more humid headwaters of Ribeira da Garça and Ribeira Manequim.",,,,,,,,,,True,True
+answer,dialogue_turn1,Mali,"The Inner Niger Delta is an inland river delta of the Niger River, located in central Mali, just south of the Sahara Desert. It’s a region with a significant ecosystem, dependent on the amount of flooding it receives, and is a key area for agriculture, particularly cattle, pearl millet, and rice.","The Inner Niger Delta, also known as the Macina or Masina, is the inland river delta of the Niger River. It is an area of fluvial wetlands, lakes and floodplains in the semi-arid Sahel area of central Mali, just south of the Sahara Desert.",,,,,,,,True,0.4,False,False
+classify,,Niger,"```json
+{
+  ""country"": ""France"",
+  ""theme"": ""Landscape & Scenery"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": ""null""
+}
+```","{
+  ""country"": ""Niger"",
+  ""theme"": ""Archaeological Site"",
+  ""terrain"": ""Desert or Sahel"",
+  ""traveler_profile"": ""History and heritage, slow travel"",
+  ""world_heritage"": true
+}",True,False,False,False,False,Landscape & Scenery,Archaeological Site,,,,
+answer,country,Ghana,"The Wa Naa’s Palace is located in the heart of the town and the home to the entire family, palace staff and officials of the kingdom. It is the place for cultural, political, religious and social importance for the local people.",Wa Naa's Palace is in Ghana.,,,,,,,,True,0.1702127659574468,False,False
+answer,dialogue_turn2,Mauritania,"The Oualata area was believed to have been first settled by an agro-pastoral people akin to the Mandé Soninke people, who lived along the rocky promontories of the Tichitt-Oualata and Tagant cliffs of Mauritania facing the Aoukar basin.","The town formed part of the Ghana Empire and grew wealthy through trade. By the fourteenth century the city had become part of the Mali Empire, and Ibn Battuta found the inhabitants were Muslim and mainly Massufa, a section of the Sanhaja.",,,,,,,,True,0.225,False,False
+answer,teacher_qa,Nigeria,"Here are some places or landmarks mentioned in Gombe State, according to the passage:
+
+*   Palace of the Emir of Gombe
+*   Kwadon National Forest Reserve
+*   Kashere
+*   Gombe
+*   Gombe
+*   Gombe
+*   Gombe
+*   Bolewa
+*   Kanuri
+*   Hausa people
+*   Cham people
+*   Dadiya people
+*   Jara people
+*   Kamo people
+*   Pero people
+*   Tangale people
+*   Tera people
+*   Waja people","The passage mentions the palace of the Emir of Gombe in the state capital, Deba Habe as the home of the Kwadon National Forest Reserve, and Kashere as the home of Federal University Kashere. It also notes Emir Palace in Gombe as the palace of the Gombe Emirate.",,,,,,,,True,0.22608695652173913,False,False
+refuse,dialogue_abstain,Ghana,"To get around Salaga, you can walk or take a short motorbike ride. The main market, lorry station, and historic sites (Salaga Slave Market, wells) are all within 10- to 15-minute walk or a short motorbike ride in the old town.","The source says the main market, lorry station, and historic sites are all within a 10- to 15-min walk or a short motorbike ride in the old town. It does not cover transport details beyond that, and it also notes the sites include the slave market, wells, cemetery, and the central mosque.",,,,,,,,,,False,True
+summarize,one_sentence,Sierra Leone,"Banana Island Sierra Leone is a popular tourist destination offering a diverse range of activities, including fishing, diving, and historical exploration, attracting visitors with its natural beauty and rich cultural heritage.",The Banana Islands are a prime tourist destination in Sierra Leone.,,,,,,,,True,0.19047619047619047,False,False
+answer,dialogue_turn1,Senegal,"The passage doesn’t explicitly state where Mar Lodj is located. It only describes it as a rural community in Central Senegal, within the Fatick administrative region.","Mar Lodj is a rural community in Central Senegal. It belongs to the district of Fimela, in the Fatick administrative region.",,,,,,,,True,0.5106382978723405,False,False
+answer,dialogue_turn1,Senegal,The passage doesn’t describe anything particularly notable about Podor itself. It simply states that it’s a charming town with a good atmosphere and is home to Baaba Maal.,"Podor is a town in Northern Senegal. It is the northernmost town in Senegal, and perhaps the quaintest.",,,,,,,,True,0.17391304347826086,False,False
+refuse,dialogue_abstain,Senegal,The passage doesn’t provide information about how to get to the museum. It only describes its location and the types of artifacts it holds.,"The source does not cover transport. It does cover that the museum is located in Djilor, Senegal, and that the building that houses it is based on Sudanese architecture.",,,,,,,,,,False,True
+classify,,Burkina Faso,"```json
+{
+  ""country"": ""Burkina Faso"",
+  ""theme"": ""Village"",
+  ""terrain"": ""Moore Plateau"",
+  ""traveler_profile"": ""General, nature and wildlife, outdoor"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Burkina Faso"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Mountain or highland"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Village,Town or Area Guide,,,,
+summarize,summary,Nigeria,"Here’s a summary of the passage for a traveller, within approximately 50-75 words:
+
+Oba Hills National Park, located in Nigeria, is a significant forest reserve with a unique landscape of three hills, a valley, and a large teak plantation. It’s home to endangered species and supports crucial ecological balance, including regulating the local climate and water resources. However, the park faces challenges due to deforestation, land use pressures, and repeated fires, threatening its biodiversity and conservation efforts.","Oba Hills National Park is a forest reserve and national park in Iwo, Osun State, Nigeria. Oba Hills National Park is an area made up of three hills connected by a valley. On the reserve's western side which is beyond the hills, there is a sizeable teak plantation that makes up roughly 12% of its whole area.",,,,,,,,False,0.19402985074626866,False,False
+answer,theme,Togo,"German Cemetery of Lomé is associated with the period of German colonial rule. It contains graves of missionaries, merchants and members of the German colonial administration, as well as several Togolese figures.","It falls under monument & memorial. The passage describes it this way: The German Cemetery of Lomé is a historic cemetery in Lomé, Togo, associated with the period of German colonial rule.",,,,,,,,True,0.40625,False,False
+summarize,one_sentence,Burkina Faso,"The Mare d'Oursi, a small, important lake within the Sylvo-Pastoral and Partial Faunal Reserve of Burkina Faso, is a crucial migratory bird habitat.","The Mare d'Oursi is a small, shallow lake in Oudalan Province in northern Burkina Faso, close to the town of Oursi.",,,,,,,,True,0.31818181818181823,False,False
+digest,teacher_digest,Cape Verde,"Fortim d'El Rei is a historic fort in Mindelo, Cape Verde, located on a hilltop north of the city center. Built in 1852 for defense of Porto Grande Bay, it was used primarily for civil purposes before falling into disrepair in 1930. The area, known as Fortinho or Fortinho/Escola Técnica, is a subdivision of Mindelo, with a population of approximately 92 at the 2010 census.  Its name originates from the fortress, Fortim d'El-Rei.","Fortim d'El-Rei is a fort in Mindelo, on São Vicente in Cape Verde, located on a hill north of the city centre in the Fortinho neighbourhood. Built in 1852, it was intended to defend Porto Grande Bay and the city of Mindelo. Since 1930 it has been used only for civil purposes and gradually fell into disrepair. A visitor would see the fortress site above the city; the surrounding subdivision of Fortinho takes its name from it.",,,,,,,,True,0.4133333333333334,False,False
+summarize,one_sentence,Senegal,"Podor is a charming, historic town in Northern Senegal, steeped in French colonial history and known for its musical heritage and picturesque setting.","Podor was a French trading post in the 18th century, and the ruins of their fort remain in town.",,,,,,,,True,0.1904761904761905,False,False
+answer,dialogue_turn2,Mali,"The Inner Niger Delta is an area of fluvial wetlands, lakes and floodplains in the semi-arid Sahel area of central Mali, just south of the Sahara Desert. It experiences a hot and dry climate with hot winds from the Sahara, and during the wet season, the swamp floods into a lake, irrigating the land.","Towns such as the river-port of Mopti, Sévaré and Djenné, with its mud-brick Great Mosque lie in the 400 km-long region. The Fulani and Dogon inhabit the Macina region and the surrounding area, and during the wet season the swamp floods into a lake, while in the dry season it turns into a network of lakes and channels.",,,,,,,,True,0.3392857142857143,False,False
+answer,dialogue_turn2,Nigeria,"The River Ethiope is considered to be the deepest inland waterway in Africa, formed in contrast to other rivers at the foot of a giant silk cotton tree in Ummaja, Ukuwani City, Delta, and flows into Sapele. Its appeal is its uniqueness and unnatural purity. Fish swim enthusiastically in the water, but as soon as they feel the presence of humans, they go out of reach. The river is now home to many attractions and is said to help irrigate 60,000 hectares of land in Abraca for the initiative to develop high quality cassava flour for federal cassava bread and mechanized cassava farms.","The River Ethiope is an exceptionally beautiful river. A wide variety of animals and plants inhabit, and the river provides ecosystem services such as flood protection, climate regulation, recreation, spiritual tribute, water supply, food, research and education, medicine, and building materials to the many communities in which it flows.",,,,,,,,True,0.15789473684210525,False,False
+answer,dialogue_turn2,Ghana,"The passage states that the lake is sacred to the Ashanti tribe and that many parts of the lake forbid the use of modern metal boats, motors, and nets. It also mentions that the local fishermen use a flat wooden plank called a padua to move on the water and that Sundays are considered the Sabbath of the lake.","The lake is surrounded by lush vegetation and steep hills rising 500 to 1,400 feet above the lake's surface. Abono Village is the main tourist center where you can see the traditional Padua planks lined up on the shore, and there are guesthouses that can arrange boat cruises to visit the different villages around the lake.",,,,,,,,True,0.2608695652173913,False,False
+refuse,teacher_abstain,Nigeria,Kagara is known for its talc processing plant and the Nok culture.,"The source does not cover local foods or tourist attractions in Kagara. It instead covers its administrative role, the Kagara Emirate, the talc processing plant, the dam project, the 2021 kidnapping incident, and Nok culture remains.",,,,,,,,,,False,True
+refuse,dialogue_abstain,Guinea,"No, the passage does not mention public transport nearby.","The source does not cover transport. It does cover that the museum is near the Ignace Deen Hospital on the 7th boulevard in Kaloum, and that one wing has been restored with the support of the Embassy of Japan.",,,,,,,,,,True,True
+refuse,dialogue_abstain,Cape Verde,The passage doesn’t mention how to get around town cheaply or the best time to go to the harbor. It focuses on the route and landmarks within the city center.,"The source does not cover that. It does cover the walk through the town center, the port area, and the route to Santo Antão from Mindelo.",,,,,,,,,,False,True
+summarize,one_sentence,Cape Verde,"Terras Salgadas, a significant saline ecosystem in Cape Verde’s Maio Island, is a vast, protected area renowned for its unique biodiversity and historical mapping.","Terras Salgadas (Portuguese meaning ""salty lands"") is a vast natural area covering the northwestern part of the island of Maio, Cape Verde.",,,,,,,,True,0.17391304347826086,False,False
+answer,teacher_qa,Senegal,The Dynamic Museum in Dakar is known for showing artifacts and history from the Iron Age Nok culture all the way up to the modern era.,"Its first exhibition featured over 600 pieces of African art borrowed from 50 museums around the world. The museum was also designed as a decolonial celebration of African culture, with artifacts and history ranging from the Iron Age Nok culture to the modern era.",,,,,,,,True,0.42857142857142855,False,False
+answer,dialogue_turn1,Nigeria,"Okeluse Forest Reserve is located in Okeluse, Ondo State, South West, Nigeria. It’s a major forest reserve in Nigeria, and it’s a significant area with a terrain elevation of 68 metres above sea level.","The Okeluse Forest Reserve is situated in Okeluse, an agrarian community in Ose Local Government Area of Ondo State, South West, Nigeria, West Africa. It covers 144 square kilometres (56 sq mi) and is a major forest reserve in Nigeria.",,,,,,,,True,0.4054054054054054,False,False
+answer,dialogue_turn2,Ghana,"After it was built, the fort was destroyed on 1 June 1698 during the Dutch-Komenda war and reduced to blackened outer walls.","This English fort was destroyed on 1 June 1698, during the Dutch-Komenda war, and reduced to blackened outer walls. A new second fort had been built before 1726, but in 1782 the fort was taken by the Dutch and destroyed.",,,,,,,,True,0.48387096774193555,False,False
+answer,dialogue_turn1,Ghana,"The passage states that Lake Bosumtwi is a rare natural treasure located in the Ashanti Region of Ghana, formed by a meteorite impact over a million years ago. It’s the only natural lake in Ghana and one of six meteoritic lakes in the world, and it’s sacred to the Ashanti tribe, where spirits pay homage to their goddess, Asase Ya, and mixing modern fun with ancient spirituality.","Lake Bosumtwi, also spelled Bosomtwe, is a rare natural treasure located in the Ashanti Region of Ghana. It is the only natural lake in Ghana and one of six meteoritic lakes in the world.",,,,,,,,True,0.5148514851485149,False,False
+answer,teacher_qa,Mali,"Here’s what the passage mentions about the places and Djenné’s known for:
+
+*   **Places mentioned:** Djenné, Mopti, Sévaré, and Bani.
+*   **Djenné is known for:** Its mud-brick Great Mosque, its agricultural products (cattle, pearl millet, rice), and its role as a haven for birds.","The passage mentions Mopti, Sévaré, and Djenné in the 400 km-long region. Djenné is noted for its mud-brick Great Mosque.",,,,,,,,False,0.3125,False,False
+refuse,dialogue_abstain,Nigeria,The passage doesn’t provide information about how to get to Kagara or the best transport options from nearby towns. It only describes the emirate and its history.,"The source does not cover transport. It does cover that Kagara is part of the Niger East Senatorial district, is the seat of the Kagara Emirate, and has a talc processing plant.",,,,,,,,,,False,True
+refuse,abstain_access,Côte d'Ivoire,The passage does not contain the answer to the question.,The passage does not describe how to reach Aby Lagoon. It covers the place itself rather than routes or transport.,,,,,,,,,,True,True
+summarize,summary,Ghana,"Ada Foah resides on the Ghanaian Coastal Plain, a region historically significant for trade and resource extraction. Initially established as a Dutch trading center, the area became a key location for the export of palm oil and rubber.  However, the rise of cocoa production ultimately led to Ada’s decline, with the Volta hydroelectric dam hindering further river transport and diminishing her prominence.","Ada Foah is on the Ghanaian Coastal Plain. Ada once bloomed as a trade center due to its prime location on the Atlantic Coast and Volta River, which allowed products to be moved from the interior expediently for shipment. Fort Kongenstein largely washed into the sea, but there is a well-preserved fort a little east of Ada in Keta called Fort Prinzenstein:
+Ada still has a reputation for some fine beaches both along the Atlantic as well as along the Volta River.",,,,,,,,False,0.2222222222222222,False,False
+summarize,summary,Cape Verde,"Baía da Murdeira is a protected marine nature reserve located on the southwest coast of Sal Island, Cape Verde. It’s characterized by its steep cliffs and the uninhabited islet Ilhéu Rabo de Junco, which serves as a crucial nesting ground for sea turtles and seabirds. The bay itself is a wide crescent shape, encompassing a significant portion of the island’s coastline and marine habitat.","Baía da Murdeira is a wide crescent shaped bay on the southwest coast of the island of Sal in Cape Verde. It takes its name from the village Murdeira, which lies at its shore. The islet is part of the marine nature reserve Baía da Murdeira.",,,,,,,,True,0.3818181818181817,False,False
+summarize,summary,Mali,"Here’s a quick summary for a traveller:
+
+Mopti is a key port in Mali, offering access to Djenné, Timbuktu, and Dogon Country.  Visit the bustling harbour and market near the mosque, and consider a pinasse trip to Timbuktu. Be cautious of inflated prices from the harbour mafia and negotiate carefully when arranging tours to Dogon Country, particularly avoiding the Bar Bozo.","Mopti is one of the main ports in Mali, and a good gateway for many of the country's most impressive attractions such as Djenné, Timbuktu, and Dogon Country. Mopti is a city in the Mopti Region in Mali, north east of the capital Bamako. The harbour is bustling with life.",,,,,,,,True,0.2342342342342342,False,False
+answer,teacher_qa,Burkina Faso,"Yes, a traveler can arrange a trip to Dogon country in Mali from Ouahigouya.","Yes. The passage says it is possible to find guides and organize a trip to Dogon country in Mali from Ouahigouya, though it adds that guides in Mali are probably better equipped than those in Ouahigouya.",,,,,,,,True,0.36,False,False
+refuse,teacher_abstain,Guinea,The passage does not explain how to get to the museum by public transport.,No. The source does not cover public transport directions; it instead describes the museum’s location in Kaloum near Ignace Deen Hospital and gives some information about its collection and history.,,,,,,,,,,True,True
+answer,what_is,Nigeria,Toro is one of the largest local government areas in Nigeria.,"Toro is one of the headquarters area of Toro Local Government Area and a town in Bauchi State, Nigeria.",,,,,,,,True,0.6,False,False
+answer,dialogue_turn1,Ghana,"The Kwame Nkrumah Memorial Park is located in downtown Accra and is centered around the remains of Kwame Nkrumah. It’s a complex dedicated to his life and presidency, featuring a museum displaying objects from his life and a mausoleum housing his final remains.","It is located in downtown Accra, the capital of Ghana. The mausoleum is the centerpiece of the Kwame Nkrumah Memorial Park and houses the final remains of the first President and his wife, Fathia Nkrumah.",,,,,,,,True,0.28205128205128205,False,False
+answer,country,Guinea,"Badiar National Park is located in Guinea, on the border with Senegal and contiguous with Senegal’s Niokolo-Koba National Park.",Badiar National Park is in Guinea.,,,,,,,,True,0.39999999999999997,False,False
+refuse,scope_security,Ghana,I cannot answer the question using only the passage provided.,I cannot advise on current safety or security conditions. Check your government's official travel advice for Ghana. What I can do is describe documented destinations in Ghana and answer questions about them from their sources.,,,,,,,,,,True,True
+refuse,dialogue_abstain,Ghana,The passage doesn’t provide specific instructions on how to visit a memorial or landmark connected to Obetsebi-Lamptey.,"The source does not cover transport. It does say his legacy is reflected in Ghanaian history books, street names, and the Obetsebi-Lamptey Interchange on the Ring Road West in Accra, Ghana, and that a monument has been mounted in his memory after completion of the interchange.",,,,,,,,,,False,True
+answer,teacher_qa,Senegal,Tambacounda is famous for its rich djembe and dance culture and heritage.,"Tambacounda is famous for its rich djembe and dance culture and heritage. The passage says some of the greatest djembe masters from Segu, Mali came there in the mid 1900s, bringing their history, knowledge, and secrets of the djembe.",,,,,,,,True,0.47058823529411764,False,False
+summarize,summary,Nigeria,"Here’s a summary of the passage in three sentences:
+
+The Sanda Kyarimi Park Zoo in Maiduguri, Nigeria, is one of the oldest zoological gardens in the country, established in 1970 and dedicated to the conservation of endangered animal species. It currently houses a diverse collection of wild animals, including lions, ostriches, and elephants, and was previously a forest reserve. Sadly, the zoo has experienced significant losses due to flooding in September 2024, with over 80% of its animals deceased.","The Sanda Kyarimi Park Zoo is a 17-hectare (200,000 yd2) zoological garden and wildlife sanctuary located in Maiduguri, Borno State, Nigeria. It is one of the oldest zoological gardens in Nigeria, established in 1970.",,,,,,,,False,0.3008849557522124,False,False
+answer,country,Nigeria,"Lagos, Nigeria.",Lagos Fashion Week is in Nigeria.,,,,,,,,True,0.25,False,False
+answer,teacher_qa,Mali,"The exhibits at the National Museum of Mali include permanent and temporary exhibits on the history of Mali, as well as musical instruments, dress, and ritual objects associated with Mali’s various ethnic groups.","It presents permanent and temporary exhibits on the history of Mali, along with musical instruments, dress, and ritual objects associated with Mali's various ethnic groups. Concrete models of important cultural landmarks, including the mosques of Djenné and Timbuktu, are displayed outside on the museum grounds.",,,,,,,,True,0.5128205128205128,False,False
+refuse,teacher_abstain,Cape Verde,The passage does not contain information about the main ferry routes from São Vicente to other islands.,"The source does not cover ferry routes. It does cover São Vicente's location among the Cape Verde islands, its climate, and the history and administration of the island and Mindelo.",,,,,,,,,,True,True
+refuse,abstain_safety,Burkina Faso,"No, it is not safe to travel to Koudougou right now.","I cannot advise on current safety, security or health requirements for Koudougou. That information changes constantly and this source does not cover it - check your government's official travel advice and the relevant national authority.",,,,,,,,,,False,True
+summarize,one_sentence,Nigeria,"Owo, a major city in Nigeria, is a historic Yoruba city with a long tradition of cultural and artistic influence, particularly in the art of ivory carving and royal craftsmanship. It’s a significant center with a rich history and is now a national monument.","Owo is one of the largest cities in Ondo State, South West Nigeria.",,,,,,,,True,0.10526315789473682,False,False
+refuse,dialogue_abstain,Togo,The passage doesn’t mention where to get there or if there’s parking nearby. It simply describes the Place des Martyrs.,"The source does not cover transport or parking. It does say the memorial is located in the Lomé II administrative area of Lomé, contains a commemorative stele dedicated to Togolese who died for the country, and is used for official state ceremonies.",,,,,,,,,,False,True
+summarize,one_sentence,Burkina Faso,"Bokin, a small, Moore village in North Burkina Faso, is home to the former president Thomas Sankara and boasts a peaceful, rural existence centered around millet cultivation and a local culture that appreciates film and sports.","Located at the center of the Mossi Plateau, Bokin is a strictly Moore village, with the occasional Fulfulde intruder.",,,,,,,,True,0.1090909090909091,False,False
+summarize,one_sentence,Côte d'Ivoire,"The Musée National du Costume de Grand-Bassam, located in Ivory Coast, is a renowned architectural museum showcasing a vast collection of traditional costumes, masks, and ethnographic photographs, offering a fascinating look into the country’s culture and history.",The Musée national du costume de Grand-Bassam is a museum located in Ivory Coast.,,,,,,,,True,0.35294117647058826,False,False
+refuse,abstain_hours,Nigeria,Etinan’s opening hours are not mentioned in the passage.,The passage does not give opening hours for Etinan. Hours change and are not covered by this source.,,,,,,,,,,True,True
+summarize,one_sentence,Côte d'Ivoire,"Abokouamekro Game Reserve, located in central Ivory Coast, is a protected area supporting local livelihoods through eco-tourism while facing ongoing threats from poaching and requiring ongoing conservation efforts.",The Abokouamekro Game Reserve is a protected area located near Yamoussoukro in central Ivory Coast.,,,,,,,,True,0.27906976744186046,False,False
+summarize,summary,Ghana,"Karaga is a small, Dagomba-dominated town in Ghana, situated near Tamale and serving as a key gateway to the Dagbon Kingdom. It’s a vital center for the Dagbon community, with a traditional palace, bustling market, and a strong connection to agriculture and warrior traditions. The town is characterized by a predominantly Dagomba population, with Hausa as the main language, and Islam as the dominant religion, shaping daily life and festivals.  It’s a relatively compact area with a central market and significant cultural heritage, particularly during the Damba and Bugum Chugu festivals.","Karaga is the capital of Karaga District in the Volta Basin region of Ghana. Karaga is one of the traditional paramount chieftaincies of the Dagbon Kingdom. The town has historically been a seat of the Karaga chief, who is a senior chief under the Ya-Na, the King of Dagbon in Yendi.",,,,,,,,True,0.18309859154929575,False,False
+classify,,Senegal,"```json
+{
+  ""country"": ""Senegal"",
+  ""theme"": ""Museum & Gallery"",
+  ""terrain"": ""Urban"",
+  ""traveler_profile"": ""History and heritage, general sightseeing"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Senegal"",
+  ""theme"": ""Museum & Gallery"",
+  ""terrain"": null,
+  ""traveler_profile"": ""Culture-focused, indoor"",
+  ""world_heritage"": false
+}",True,True,True,False,False,Museum & Gallery,Museum & Gallery,,,,
+answer,dialogue_turn2,Benin,The Pedah and the Ayizo are the two main ethnic groups living on the shores of Lake Ahémé. Fishing and agriculture are the main economic activities in the area.,"The Pedah and the Ayizo are the two main ethnic groups living on the shores of Lake Ahémé. Fishing and agriculture are the main economic activities in the area, and 71 species of fish have been recorded in the lake.",,,,,,,,True,0.8115942028985508,False,False
+answer,teacher_qa,Niger,Takedda was known as a town and former kingdom.,"In the 14th century, the Tuareg-controlled kingdom of Takedda played a prominent role in long-distance trade. This was notably due to the importance of its copper mines.",,,,,,,,True,0.1111111111111111,False,False
+answer,teacher_qa,Niger,"The climate in the Ténéré is extremely hot and dry, with average high temperatures above 40°C (104°F) for about 5 months and record high temperatures as high as 50°C (122°F). It is hyper-arid, with extremely low annual precipitation (around 10 mm to 15 mm), and water is notoriously difficult to find.","It has a hot desert climate that is hyper-arid, extremely hot, sunny, and dry year-round, with virtually no plant life. Rainfall is extremely low, and water is notoriously difficult to find, even underground.",,,,,,,,True,0.30952380952380953,False,False
+summarize,summary,Ghana,"Wa Naa’s Palace is a significant cultural and political center in the Upper West Region of Ghana, home to the King and his family. Built from traditional mud-brick architecture, it’s a complex structure with a history rooted in nomadic migration and the establishment of the Wa Naa title.  The palace is a vital site, including a grave for former rulers and a landmark for preservation efforts.","Wa Naa's Palace is the home to the King of the Wala people who are said to be the majority in Wa in the Upper West Region of Ghana. It is located in the heart of the town and the home to the entire family, palace staff and officials of the kingdom. It is the place for cultural, political, religious and social importance for the local people.",,,,,,,,True,0.2857142857142857,False,False
+summarize,one_sentence,Ghana,"Nadowli is a rural, predominantly subsistence-based town and the administrative center of a region characterized by mixed farming, local governance, and a rich natural environment.",Nadowli is a town in the Ghanaian Northern Plains.,,,,,,,,True,0.29411764705882354,False,False
+summarize,summary,Ghana,"Here’s a brief summary for a traveller:
+
+Tatale is a quiet farming town in the Volta Basin, located on the border with Togo. It’s a key trading hub, known for yams and border trade, and a Konkomba settlement.  It’s a traditional town with a strong Christian and traditional religion presence, and enjoys a dry season.  The main market is busiest in November-February, attracting traders from Togo.  Nearby are savanna woodlands and the Oti River.  Visit the market, explore the farms, and consider a cross-border trip to Togo.","Tatale is the capital of Tatale-Sanguli District in the Volta Basin, on the border with Togo. It is a quiet farming and border market town in the eastern Oti River area in the Volta Basin, known for yams, border trade, and as the Ghanaian gateway to Koutammakou in Togo. Tatale grew as a Konkomba and Basare farming settlement and border crossing.",,,,,,,,False,0.2972972972972973,False,False
+refuse,teacher_abstain,Ghana,"According to the passage, you can get to the Independence Arch from the airport by walking through the Black Star Gate and the Liberation Day Monument.","The source does not cover transportation or directions to the site. It does cover the arch’s location in Accra at Black Star Square, its role in Ghana’s independence monuments, and access and photography restrictions.",,,,,,,,,,False,True
+answer,dialogue_turn2,Ghana,"To walk you through the slave market, wells, cemetery, and old wells, hire a local guide. Allow 2 hours.","Salaga Slave Market Site is the former market square where slaves were traded, with markers and oral history from guides. Salaga Slave Wells, also called Wankan bai in the Hausa dialect, are about 500 m from the old market, and Salaga Slave Cemetery is a mass burial ground for slaves who died in transit.",,,,,,,,True,0.136986301369863,False,False
+refuse,dialogue_abstain,Liberia,The passage does not mention whether it is easy to get there by road. It only describes the landscape and wildlife of the area.,"The source does not cover transport. It does cover that the site is proposed, covers 202 km2, and is contiguous with the Ziama Massif Biosphere Reserve in Guinea.",,,,,,,,,,True,True
+refuse,abstain_access,Cape Verde,"To the south of the headland stretches the Costa da Fragata, a 4.7 km long sandy beach which is a protected nature reserve, important as nesting area for loggerhead sea turtles.",The passage does not describe how to reach Costa da Fragata. It covers the place itself rather than routes or transport.,,,,,,,,,,False,True
+refuse,dialogue_abstain,Mali,"The people and places associated with the Inner Niger Delta are the towns of Mopti, Sévaré, and Djenné, with its mud-brick Great Mosque. During the wet season, the swamp floods into a lake, while in the dry season it turns into a network of lakes and channels.","The source does not cover transport or safety. It does cover that the area has a hot and dry climate for most of the year, receives flooding from rain upstream, and supports cattle, pearl millet, rice, water, fish, and large numbers of birds in the wet season.",,,,,,,,,,False,True
+summarize,summary,Ghana,"Ho is the administrative capital of Ghana’s Volta Region, a vibrant and culturally rich town known for its clean air, traditional Ewe culture, and the annual Asogli Yam Festival. It’s a key center for trade and community, offering a unique opportunity for travelers to experience authentic Ghanaian life through homestays, local traditions, and eco-tourism.  The town is also home to the Adaklu Mountain Eco-Tourism Committee, promoting sustainable development and cultural immersion.",Ho is the capital of the Volta region in Ghana and is 3-4 hours from Accra. Ho is the administrative capital of Ghana's Volta Region. It is a lush valley between Mount Adaklu and the Akwapin-Togo mountain range.,,,,,,,,False,0.22018348623853212,False,False
+summarize,summary,Benin,"Here’s a summary of the passage:
+
+The Great Mosque of Porto-Novo in Ouémé, Benin, was built between 1912 and 1925 during French colonial rule, reflecting a distinctive Afro-Brazilian architectural style. Constructed as a chapel-like structure with a central hall and shallow vaulted roof, the mosque features intricate stucco molding adorning its front facade.  Recently, it has been recognized as a historical monument by the city government.","The Great Mosque of Porto-Novo (French: Grande Mosquee de Porto-Novo) is a mosque in Porto-Novo, Ouémé Department, Benin. The construction of the mosque started in 1912 and completed in 1925 during the French Dahomey.",,,,,,,,True,0.22,False,False
+answer,dialogue_turn1,Senegal,"The Musée Dynamique was created as a decolonial celebration of African culture, and it featured artifacts and history from the Iron Age Nok culture all the way up to the modern era.","The Dynamic Museum (French: Musée Dynamique) is a museum in Dakar, Senegal. The museum was designed to act as a decolonial celebration of African culture, and it featured artifacts and history from the Iron Age Nok culture all the way up to the modern era.",,,,,,,,True,0.7792207792207793,False,False
+summarize,summary,Ghana,"Here’s a brief summary for a traveller, based on the passage:
+
+Mole National Park, located in Ghana’s Savannah region, is a large wildlife refuge covering approximately 4,577 square kilometers of undisturbed Guinea savannah. It’s a popular tourist destination, featuring a luxury safari lodge and is currently underfunded, but has seen improvements in protection due to long-term studies.  The park is known for its unique rivers, resident antelope species, and a growing honey trade.","Mole National Park, one of Ghana's seven national parks, is the country's largest wildlife refuge. The park is located in the Savannah region of Ghana on savanna and riparian ecosystems at an elevation of 50 m, with a sharp escarpment forming the southern boundary of the park. The Levi and Mole Rivers are ephemeral rivers flowing through the park, leaving behind only drinking holes during the long dry season.",,,,,,,,False,0.14084507042253525,False,False
+answer,teacher_qa,Nigeria,Early November to late February is the ideal time of year to visit Minna for hot-weather activities.,"It says early November to late February is the ideal time of year to visit Minna for hot-weather activities. The city is described as hot all year round, with a dry season that is partially cloudy and a wet season that is oppressive and cloudy.",,,,,,,,True,0.5483870967741935,False,False
+answer,country,Ghana,The passage does not specify where you would travel to for Obetsebi.,Obetsebi is in Ghana.,,,,,,,,True,0.0,True,False
+answer,teacher_qa,Ghana,"Daily life in Ho is grounded in rich Ewe traditions, lively central markets, and a strong sense of community.","Daily life in Ho is grounded in rich Ewe traditions, lively central markets, and a strong sense of community. The town also celebrates the Asogli Yam Festival every September, with traditional drumming, dancing, and grand durbars presided over by the Agbogbomefia.",,,,,,,,True,0.6333333333333334,False,False
+refuse,teacher_abstain,Ghana,"Homestays, meals, guided mountain tours, drumming performances, and more are all available.","The source does not cover accommodation options in Ho in general. It does mention homestays as part of the Adaklu Mountain experience, along with meals, guided mountain tours, and drumming performances.",,,,,,,,,,False,True
+answer,dialogue_turn2,Cape Verde,"Around the bay, it’s a protected area covering 182 hectares of land and 5,925 hectares of sea, including the Ilhéu Rabo de Junco.","At its northwestern end lie the steep cliff of Rabo de Junco and the islet Ilhéu Rabo de Junco. The bay is protected as a marine nature reserve, and it is a nesting area for sea turtles and seabirds.",,,,,,,,True,0.2580645161290323,False,False
+answer,teacher_qa,Ghana,"According to the passage, the park’s name was originally Oforidua, then Jackson, and finally renamed Koforidua Jackson Park.","According to the passage, it was later renamed Jackson Park after a white man involved in the cocoa trade. The text says his passion for sports like basketball and football, and other sports at the park, led to the renaming.",,,,,,,,True,0.24137931034482757,False,False
+classify,,Nigeria,"```json
+{
+  ""country"": ""Nigeria"",
+  ""theme"": ""General Attraction"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""General, nature and wildlife, outdoor"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": null,
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,General Attraction,Town or Area Guide,,,,
+classify,,Sierra Leone,"```json
+{
+  ""theme"": ""Landscape & Scenery"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Sierra Leone"",
+  ""theme"": ""Coast & Beach"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Beach and relaxation"",
+  ""world_heritage"": false
+}",True,False,False,True,False,Landscape & Scenery,Coast & Beach,,,,
+summarize,one_sentence,Togo,"The Place des Martyrs (""Martyrs' Square"") in Lomé, Togo, is a significant commemorative square and memorial dedicated to Togolese martyrs and used for national remembrance ceremonies, particularly on Martyrs' Day.","The Place des Martyrs (""Martyrs' Square"") is a commemorative square and memorial in Lomé, the capital of Togo.",,,,,,,,True,0.5,False,False
+classify,,Ghana,"```json
+{
+  ""country"": ""Ghana"",
+  ""theme"": ""Historical"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""History and heritage, outdoor"",
+  ""world_heritage"": ""true""
+}
+```","{
+  ""country"": ""Ghana"",
+  ""theme"": ""Fort & Castle"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""History and heritage"",
+  ""world_heritage"": false
+}",True,True,False,True,False,Historical,Fort & Castle,,,,
+answer,teacher_qa,Cape Verde,"At the southern end of the Serra Negra mountain, 6 km northeast of the town Santa Maria.","Ponta da Fragata is on the east coast of the island of Sal in Cape Verde. It lies at the southern end of Serra Negra, about 6 km northeast of Santa Maria.",,,,,,,,True,0.48979591836734687,False,False
