@@ -299,3 +299,20 @@ Status values: `active` · `superseded by D-nn` · `open`.
   and Colab Secrets are per Google account, so every person running the
   notebook would otherwise need their own OpenAI key.
 - **Status:** active
+
+## D-21 · Spot-check of training examples: issues found, not fixed today
+- **Date:** 22 Nov 2026
+- **Finding:** Reading two random examples per task turned up:
+  1. Wikivoyage listing text survived cleaning in some passages
+     (Igbo-Ukwu: "Daylight hours with family permission… Tip for local guides
+     expected"), contrary to D-03.
+  2. Some auto-assigned labels are doubtful (Ile Oluji, an agrarian town,
+     labelled terrain "Urban").
+  3. The summarisation set is extractive: answers are the passage's opening
+     sentences, and a "two to three sentences" request sometimes gets two.
+  4. Opinionated source text is passed through (Gorom-Gorom: "The guides are
+     pests"), a cultural-respect risk the proposal names.
+- **Decision:** Leave the data as is for today's run; record these as
+  limitations. A later rebuild should tighten the listing filter and review
+  terrain rules.
+- **Status:** open
