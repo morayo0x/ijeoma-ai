@@ -533,3 +533,22 @@ def test_list_names_do_not_hijack_other_questions(router):
 def test_transport_does_not_assume_the_current_place(router, kakum):
     assert router.route("How do I get to Mole National Park?", kakum, []).kind == "transport"
     assert router.route("How far is Mole from here?", kakum, []).kind == "distance"
+
+
+@pytest.mark.parametrize(
+    ("message", "passage_id"),
+    [
+        ("where is Liberia located", "country-liberia-overview"),
+        ("How big is Mali?", "country-mali-overview"),
+        ("What countries border Togo?", "country-togo-overview"),
+        ("Is Burkina Faso a big country?", "country-burkina-faso-overview"),
+        ("Which region of Africa is Guinea in?", "country-guinea-overview"),
+    ],
+)
+def test_general_country_questions_use_the_overview(guided, message, passage_id):
+    route = guided.route(message, None, [])
+    assert route.kind == "answer" and route.destination.passage_id == passage_id
+
+
+def test_border_crossings_are_still_declined(guided):
+    assert guided.route("Is the border crossing to Togo open?", None, []).kind == "out_of_scope"

@@ -46,7 +46,7 @@ GENERIC = COUNTRIES | {
 
 OUT_OF_SCOPE = re.compile(
     r"\b(visa|visas|vaccin\w*|malaria|yellow fever|safe|safety|security|danger\w*|"
-    r"border|exchange rate|currency|flight\w*|airline\w*|book|booking|hotel\w*|"
+    r"border (crossings?|closures?|posts?|status|open|closed)|cross(ing)? the border|exchange rate|currency|flight\w*|airline\w*|book|booking|hotel\w*|"
     r"accommodation|lodging|guesthouse\w*|where (can|should|to) (i )?(stay|sleep)|"
     r"how much (does|do|is|are|will|would)|cost|costs|price|prices|fee|fees|entrance charge)\b",
     re.I,
@@ -79,6 +79,13 @@ DESCRIBE_EACH = re.compile(
     r"(?:a|some)?\s*descriptions?\s+(?:of|for)\s+(?:each|them|all|these|those)|"
     r"with\s+(?:a\s+|short\s+)?descriptions?|tell me (?:more )?about (?:each|them|all of them|these|those)|"
     r"(?:each|every) (?:one|of them))\b",
+    re.I,
+)
+COUNTRY_FACT = re.compile(
+    r"\b(where|located|location|situated|capital|population|size|how (big|large|small)|"
+    r"big|large|small|area|borders?|bordering|neighbou?r\w*|region|part of|continent|"
+    r"independen\w*|official|government|president|economy|history|known for|famous for|"
+    r"people|religion\w*)\b",
     re.I,
 )
 ABOUT_COUNTRY = re.compile(
@@ -1107,6 +1114,17 @@ class Router:
             if topic and best == topic:
                 return Route("answer", topic)
             return Route("fact", best, facet=facet)
+
+        # "Where is Liberia?", "How big is Mali?": general questions about one country.
+        if (
+            len(countries) == 1
+            and not places
+            and (COUNTRY_FACT.search(text) or ABOUT_COUNTRY.search(text))
+            and not (requested_themes(text) or requested_subjects(text))
+            and not any(p.search(text) for p in (RECOMMEND, PLAN, BUDGET, ROMANTIC))
+            and (overview := self.guide(countries[0], "overview"))
+        ):
+            return Route("answer", overview, new_topic=True)
 
         if topic and REFERS_BACK.search(text):
             return Route("answer", topic)  # "it", "there": a follow-up on the current place
