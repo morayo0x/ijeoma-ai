@@ -74,6 +74,22 @@ results/
 
 ---
 
+## Quick start on Google Colab
+
+Both notebooks run on a free Colab T4 GPU and need only a Hugging Face token
+(see [Requirements](#requirements)); the code, adapter and data are fetched from
+this repository.
+
+| Notebook | Purpose | Time |
+|---|---|---|
+| [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb) **Demo** | Interactive Workbench, Chat and Compare pages behind a public link | ~5 min |
+| [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_train_and_evaluate_v0_3.ipynb) **Train and evaluate** | Full fine-tuning run and evaluation, reproducing the reported results | ~3 h |
+
+In Colab: **Runtime → Change runtime type → T4 GPU**, add the `HF_TOKEN` secret,
+then **Runtime → Run all**.
+
+---
+
 ## Requirements
 
 - **Training and inference:** a GPU with at least 12 GB of memory (a free Colab
@@ -101,18 +117,11 @@ in notebook cells or commit them.
 
 ### Training
 
-1. Create a folder named `Ijeoma` in Google Drive (in *My Drive*, or reachable
-   through a shortcut up to two levels deep) and upload these files from
-   [`pipeline/out/`](pipeline/out/):
-
-   ```
-   conversational_training_data.jsonl   conversational_test_data.jsonl
-   pairs_train_full.jsonl               pairs_test_full.jsonl
-   summarization_train_full.jsonl       summarization_test_full.jsonl
-   ```
-
-2. Open `notebooks/ijeoma_train_and_evaluate_v0_3.ipynb` in Colab
-   (File → Open notebook → GitHub), select a T4 GPU runtime, and run all cells.
+Open [`notebooks/ijeoma_train_and_evaluate_v0_3.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_train_and_evaluate_v0_3.ipynb) in Colab,
+select a T4 GPU runtime, and run all cells. The notebook mounts Google Drive and
+uses a folder named `Ijeoma` in *My Drive* (or reachable through a shortcut up to
+two levels deep); if none exists, it creates one and downloads the dataset from
+this repository.
 
 | Stage | Duration | Output |
 |---|---|---|
@@ -122,7 +131,7 @@ in notebook cells or commit them.
 | Fine-tuned evaluation | ~9 min | metrics and before/after chart |
 | Additional metrics, invention test, logging | ~10 min | `ijeoma_experiment_log.csv` |
 
-Outputs are written to the `Ijeoma` folder: the adapter
+Outputs are written to the same `Ijeoma` folder: the adapter
 (`ijeoma_lora_<run>.npz`), `eval_baseline_<run>.csv`, `eval_tuned_<run>.csv`,
 `eval_adversarial_<run>.csv` and the experiment log. If the session disconnects,
 the latest checkpoint (`ijeoma_lora_<run>_ckpt.npz`) can be loaded as described
@@ -220,8 +229,8 @@ byte. To start from the raw records, run `ijeoma_clean.py` first (see
 A Gradio application with three pages: **Workbench** (any task on any passage),
 **Chat** (multi-turn conversation) and **Compare** (baseline and fine-tuned
 model side by side). On Colab, run
-[`notebooks/ijeoma_demo_colab.ipynb`](notebooks/ijeoma_demo_colab.ipynb) for a
-public link. On a local GPU:
+[`notebooks/ijeoma_demo_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb), which prints a public link. On a
+Linux GPU host:
 
 ```bash
 bash run_demo.sh                # sets up a venv, asks for the HF token, starts the app

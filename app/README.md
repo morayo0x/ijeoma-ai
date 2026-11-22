@@ -15,9 +15,8 @@ formats used in training.
 
 ## Running on Colab
 
-Open [`notebooks/ijeoma_demo_colab.ipynb`](../notebooks/ijeoma_demo_colab.ipynb),
-select a T4 GPU runtime, add `HF_TOKEN` to Colab Secrets, set `REPO_URL` to this
-repository and run all cells. The notebook prints a public `gradio.live` URL,
+Open [`notebooks/ijeoma_demo_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb) in Colab, select a T4 GPU
+runtime, add `HF_TOKEN` to Colab Secrets and run all cells. The notebook prints a public `gradio.live` URL,
 valid for up to 72 hours or until the session ends.
 
 ## Running on a GPU host

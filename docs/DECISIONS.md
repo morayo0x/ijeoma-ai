@@ -320,6 +320,18 @@ A summary of deviations from the submitted proposal is at the
   the real model on GPU is pending.
 - **Status:** active
 
+## D-24 · Self-contained Colab notebooks
+
+- **Date:** 22 Nov 2026
+- **Decision:** Both notebooks run from the public repository with no manual
+  setup beyond a Hugging Face token. The training notebook creates the `Ijeoma`
+  Drive folder if absent and downloads the dataset from GitHub; the demo
+  notebook clones the repository. The README links both with "Open in Colab"
+  buttons.
+- **Rationale:** The repository is shared with collaborators and reviewers who
+  do not have access to the team's Drive folder.
+- **Status:** active
+
 ---
 
 ## Deviations from the submitted proposal
