@@ -1,10 +1,13 @@
 """Fetch Wikivoyage country guides for the 16 countries in the corpus.
 
-For each country, three passages are written to ``out/country_guides.jsonl``:
+For each country, up to six passages are written to ``out/country_guides.jsonl``:
 
 * ``overview`` - the guide's introduction and the opening of "Understand";
 * ``language`` - the "Talk" section;
-* ``climate`` - the "Climate" subsection of "Understand".
+* ``climate`` - the "Climate" subsection of "Understand";
+* ``food`` - the "Eat" and "Drink" sections;
+* ``festivals`` - holiday, festival and event sections;
+* ``etiquette`` - the "Respect" section (local customs).
 
 These passages are used by the chat interface to answer country-level questions
 about languages and climate, and "tell me about <country>". They are not part
@@ -117,11 +120,28 @@ def guide_passages(country: str, title: str, text: str) -> list[dict]:
     retrieved = dt.date.today().isoformat()
     ascii_name = unicodedata.normalize("NFKD", country).encode("ascii", "ignore").decode()
     slug = re.sub(r"[^a-z]+", "-", ascii_name.lower()).strip("-")
+    eat = "\n".join(body for lvl, head, body in sections if head in ("Eat", "Drink"))
+    respect = next((body for lvl, head, body in sections if head == "Respect"), "")
+    festivals = "\n".join(
+        body
+        for lvl, head, body in sections
+        if re.search(r"holiday|festival|event|celebration", head, re.I)
+    )
+    if not festivals.strip():
+        festivals = "\n".join(
+            para
+            for lvl, head, body in sections
+            for para in body.split("\n")
+            if re.search(r"\bfestivals?\b", para, re.I)
+        )
     out = []
     for facet, body in (
         ("overview", f"{lead}\n{understand}"),
         ("language", talk),
         ("climate", climate),
+        ("food", eat),
+        ("festivals", festivals),
+        ("etiquette", respect),
     ):
         body = clean(body)
         if len(body.split()) < 25:
@@ -151,7 +171,8 @@ def main() -> None:
         resolved, text = fetch_extract(title)
         passages = guide_passages(country, resolved, text)
         found = {p["facet"] for p in passages}
-        missing += [f"{country}:{f}" for f in ("overview", "language", "climate") if f not in found]
+        facets = ("overview", "language", "climate", "food", "festivals", "etiquette")
+        missing += [f"{country}:{f}" for f in facets if f not in found]
         rows += passages
         print(f"{country:14} {resolved:16} {', '.join(sorted(found))}")
         time.sleep(3)  # stay well within the API's rate limits

@@ -31,6 +31,7 @@ from retrieval import (  # noqa: E402
     Router,
     answer_style,
     describe_custom,
+    distance_km,
     load_country_guides,
     looks_like_description,
     preview,
@@ -72,7 +73,34 @@ EXAMPLES = [
 ]
 
 
-FACET_TEXT = {"language": "the languages spoken", "climate": "the weather and seasons"}
+FACET_TEXT = {
+    "language": "the languages spoken",
+    "climate": "the weather and seasons",
+    "food": "local food",
+    "festivals": "festivals and holidays",
+    "etiquette": "local customs and etiquette",
+}
+HELP_TEXT = (
+    "I'm **Ijeoma**, a guide to places to visit in West Africa. I answer from travel guides "
+    "and encyclopaedia articles about 1,600 destinations in 16 countries, and I cite my "
+    "source each time. You can ask me to:\n\n"
+    "- **describe a place**: *Tell me about Sukur*, *Why should I visit Elmina Castle?*\n"
+    "- **suggest places**: *Where should I visit in Ghana?*, *waterfalls in Togo*, *places for kids*\n"
+    "- **find what's nearby**: *What is near Kakum National Park?*\n"
+    "- **compare**: *Kakum or Mole?*\n"
+    "- **answer practical questions**: languages, climate, food, festivals, local customs\n"
+    "- **read your own description** of a place and answer questions about it\n\n"
+    "I can't help with visas, safety, health, prices, bookings or live information such as "
+    "weather forecasts and opening hours; please check official sources for those."
+)
+SMALL_TALK_TEXT = (
+    "I'm only a travel guide, so I'll leave that to others! Ask me about a place in West "
+    "Africa, or for ideas, like *where should I visit in Ghana?*"
+)
+NON_ENGLISH_TEXT = (
+    "Sorry, I can only chat in English for now. Please ask in English, for example: "
+    "*Where should I visit in Nigeria?*"
+)
 
 SUMMARY_STYLE_KEYS = {
     "one_line": "One sentence",
@@ -196,6 +224,57 @@ def build_app(model, router: Router) -> gr.Blocks:
         if route.kind == "describe_list":
             state["pending"] = [d.passage_id for d in route.choices]
             return f"{format_list(route)}\n\nReply with a number or a name to hear more."
+        if route.kind == "help":
+            return HELP_TEXT
+        if route.kind == "smalltalk":
+            return SMALL_TALK_TEXT
+        if route.kind == "non_english":
+            return NON_ENGLISH_TEXT
+        if route.kind == "plan":
+            state["topic"], state["history"] = None, []
+            state["pending"] = [d.passage_id for d in route.choices]
+            return (
+                f"{route.heading}\n\n{format_list(route)}\n\nReply with a number or a name to "
+                "hear more, or ask *how far is X from Y?* to see distances between them."
+            )
+        if route.kind == "nearby":
+            state["pending"] = [d.passage_id for d in route.choices]
+            return (
+                f"{route.heading}\n\n{format_list(route)}\n\nDistances are straight-line "
+                "estimates, not road distances. Reply with a number or a name to hear more."
+            )
+        if route.kind == "distance":
+            a, b = route.choices
+            if a.latitude is None or b.latitude is None:
+                return (
+                    f"I don't have map coordinates for both {a.name} and {b.name}, so I can't "
+                    "estimate the distance. A map app will give you routes and travel times."
+                )
+            km = distance_km(a, b)
+            return (
+                f"**{a.name}** and **{b.name}** are about **{km:.0f} km** apart in a straight "
+                "line. I don't have road routes, travel times or transport options; a map app "
+                "or local transport service can help with those."
+            )
+        if route.kind == "transport":
+            place = route.destination
+            return (
+                f"I don't have directions, routes or transport options for **{place.name}**. "
+                "A map app or local transport service can help with getting there. I can tell "
+                f"you about the place itself, or what's near it: *What is near {place.name}?*"
+            )
+        if route.kind == "compare":
+            state["topic"], state["history"] = None, []
+            state["pending"] = [d.passage_id for d in route.choices if d.passage_id in by_id]
+            parts = []
+            for d in route.choices:
+                summary, _ = model.generate(prompts.summarize(d.passage, "One sentence"))
+                kind = "" if d.theme in ("", "Country Guide") else f" · *{d.theme}*"
+                parts.append(f"**{d.label}**{kind}\n{summary}\n<sub>{footer(d)}</sub>")
+            return (
+                "Here's how they compare:\n\n" + "\n\n".join(parts) + "\n\nWhich suits you "
+                "depends on what you enjoy. Ask me more about either one."
+            )
         if route.kind == "live":
             return (
                 "I don't have live weather. For today's conditions or a forecast, please check "

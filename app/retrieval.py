@@ -46,7 +46,9 @@ GENERIC = COUNTRIES | {
 
 OUT_OF_SCOPE = re.compile(
     r"\b(visa|visas|vaccin\w*|malaria|yellow fever|safe|safety|security|danger\w*|"
-    r"border|exchange rate|currency|budget|flight\w*|airline\w*|book|booking|hotel\w*)\b",
+    r"border|exchange rate|currency|flight\w*|airline\w*|book|booking|hotel\w*|"
+    r"accommodation|lodging|guesthouse\w*|where (can|should|to) (i )?(stay|sleep)|"
+    r"how much (does|do|is|are|will|would)|cost|costs|price|prices|fee|fees|entrance charge)\b",
     re.I,
 )
 REFERS_BACK = re.compile(r"\b(it|its|it's|there|here|this place|that place|the place)\b", re.I)
@@ -101,6 +103,55 @@ CHANGE = re.compile(
     r"\b(actually|instead|rather|something else|change|different|now i want)\b", re.I
 )
 
+HELP = re.compile(
+    r"\b(who are you|what are you|what can you (do|tell)|what do you (do|know)|"
+    r"how (do|does) (you|this|it) work|what (can|should) i ask|are you (a bot|human|real|an ai)|"
+    r"help me|^help\??$)",
+    re.I,
+)
+SMALL_TALK = re.compile(
+    r"\b(joke|how are you|what'?s up|how'?s it going|i love you|you'?re (great|funny|smart|stupid|"
+    r"amazing)|are you (married|single)|favou?rite (colou?r|food|song)|sing|tell me something funny)\b",
+    re.I,
+)
+# Words in Nigerian and West African languages and French, for a polite "English only" reply.
+NON_ENGLISH_WORDS = {
+    "bawo", "nibo", "ibo", "dara", "jowo", "ese", "emi", "lati", "abeg", "wetin", "una", "dey",
+    "wahala", "sabi", "oya", "comot", "sannu", "yaya", "nagode", "lafiya", "kedu", "nnoo", "biko",
+    "daalu", "ndewo", "akwaaba", "medaase", "bonjour", "merci", "voudrais", "visiter", "quels",
+    "sont", "endroits", "pourquoi", "comment", "beaucoup", "ndi", "nna", "ekaaro", "ekasan",
+}  # fmt: skip
+PLAN = re.compile(
+    r"\b(plan|planning|itinerar\w*|\d+[- ]?days?|\d+[- ]?weeks?|"
+    r"(one|two|three|four|five|six|seven|a|few|couple of) (days?|weeks?)|weekend|"
+    r"how (many|much) (days|time)|how long (should|do) i (stay|spend|need))\b",
+    re.I,
+)
+NEARBY = re.compile(
+    r"\b(near|nearby|close to|close by|surrounding|in the (area|vicinity)|next to|"
+    r"neighbou?ring|not far from|around (here|it|there))\b",
+    re.I,
+)
+DISTANCE = re.compile(
+    r"\b(how far|distance|how many (km|kilometres|kilometers|miles)|"
+    r"how (do|can|would) i (get|go|travel) (to|from|there)|get (to|from)|travel (to|from)|"
+    r"drive (to|from))\b",
+    re.I,
+)
+COMPARE = re.compile(
+    r"\b(better|best of|compare|comparison|versus|vs\.?|difference between|which (one )?"
+    r"(should|is|would)|or)\b",
+    re.I,
+)
+# Words that frame a phrase question ("how do you say thank you in Twi?") rather than
+# identify what it is about.
+PHRASE_WORDS = {
+    "say", "thank", "thanks", "hello", "goodbye", "please", "phrase", "phrases", "word",
+    "words", "mean", "means", "language", "languages", "speak", "spoken",
+}  # fmt: skip
+ROMANTIC = re.compile(r"\b(romantic|romance|honeymoon|couples?|getaway)\b", re.I)
+BUDGET = re.compile(r"\b(cheap|budget|affordable|inexpensive|low[- ]cost)\b", re.I)
+
 # Specific things a traveller asks to see. A recommendation must mention one of
 # these words in the destination's name or description, not merely share a theme.
 SUBJECTS = {
@@ -120,6 +171,8 @@ SUBJECTS = {
     "zoo": ("zoo",),
     "market": ("market", "markets"),
     "wildlife": ("park", "reserve", "sanctuary", "game", "wildlife", "biosphere"),
+    "family": ("zoo", "amusement", "garden", "gardens", "botanical", "beach", "leisure",
+               "recreation", "resort", "fun", "waterpark"),
 }  # fmt: skip
 SUBJECT_TRIGGERS = {
     "waterfall": ("waterfall", "waterfalls", "falls", "cascade"),
@@ -138,9 +191,10 @@ SUBJECT_TRIGGERS = {
     "zoo": ("zoo",),
     "market": ("market", "markets"),
     "wildlife": ("wildlife", "safari", "animals", "elephants", "lions", "game"),
+    "family": ("kids", "children", "child", "family", "families", "toddlers"),
 }  # fmt: skip
-SUBJECT_TITLES_EXTRA = {"wildlife": "wildlife and safari spots"}
-NAME_NEEDS_THEME = {"wildlife"}
+SUBJECT_TITLES_EXTRA = {"wildlife": "wildlife and safari spots", "family": "family-friendly places"}
+NAME_NEEDS_THEME = {"wildlife", "family"}
 # Themes under which a description-only mention counts (a waterfall *town* does not).
 SUBJECT_THEMES = {
     "waterfall": {"Landscape & Scenery", "Nature & Wildlife"},
@@ -159,6 +213,7 @@ SUBJECT_THEMES = {
     "zoo": {"Family & Leisure", "Nature & Wildlife"},
     "market": {"Town or Area Guide", "General Attraction"},
     "wildlife": {"Nature & Wildlife"},
+    "family": {"Family & Leisure", "Coast & Beach", "Nature & Wildlife", "Landscape & Scenery"},
 }
 
 # Kinds of place offered when someone asks for "interesting places" with no preference.
@@ -296,18 +351,58 @@ ANSWER_STYLES = (
 # Practical questions answered from whichever passage covers them best.
 FACETS = {
     "language": (
-        re.compile(r"\b(language|languages|speak|spoken|dialect|dialects|lingua franca)\b", re.I),
+        re.compile(
+            r"\b(language|languages|speak|spoken|dialect|dialects|lingua franca|"
+            r"how (do|would|can) (you|i) say|phrases?|thank you in|hello in)\b",
+            re.I,
+        ),
         re.compile(r"\b(language|languages|spoken|speak|lingua franca|dialect)\b", re.I),
     ),
     "climate": (
         re.compile(
-            r"\b(weather|forecast|climate|rainy|rains?|dry season|wet season|seasons?|harmattan|temperatures?|"
-            r"humid|humidity|best time (to|for) (visit|go|travel)|when (should|to) (i )?(visit|go))\b",
+            r"\b(weather|forecast|climate|rainy|rains?|dry season|wet season|seasons?|harmattan|"
+            r"temperatures?|humid|humidity|best time (to|for) (visit|go|travel)|"
+            r"when (should|to) (i )?(visit|go))\b",
             re.I,
         ),
         re.compile(
             r"\b(climate|rainy season|dry season|wet season|harmattan|rainfall|temperatures?|"
             r"humid|humidity|best time to visit|rains)\b",
+            re.I,
+        ),
+    ),
+    "food": (
+        re.compile(
+            r"\b(food|foods|eat|eating|dish|dishes|cuisine|meals?|restaurants?|drinks?|street food|"
+            r"jollof|fufu|suya|banku|kenkey|egusi|thieboudienne|ceebu jen|attieke|yassa|mafe|"
+            r"kelewele|waakye|garri|akara|moi moi|pepper soup|palm wine|bissap|plantain)\b",
+            re.I,
+        ),
+        re.compile(
+            r"\b(dish|dishes|cuisine|food|restaurant|jollof|fufu|suya|delicacy|delicacies|"
+            r"street food|palm wine)\b",
+            re.I,
+        ),
+    ),
+    "festivals": (
+        re.compile(
+            r"\b(festivals?|holidays?|celebrat\w*|carnivals?|events?|ceremon(y|ies)|"
+            r"durbar|homowo|panafest|odwira|fetu)\b",
+            re.I,
+        ),
+        re.compile(
+            r"\b(festival|festivals|celebrat\w*|carnival|ceremony|ceremonies|durbar)\b", re.I
+        ),
+    ),
+    "etiquette": (
+        re.compile(
+            r"\b(wear|dress|dress code|etiquette|customs?|respect\w*|polite|rude|taboos?|"
+            r"photos?|photograph\w*|pictures?|tipping|tip|behave|behaviou?r|offend\w*)\b",
+            re.I,
+        ),
+        re.compile(
+            r"\b(dress modestly|etiquette|respect|taboo|customs|photograph\w*|permission|"
+            r"modest|remove (your )?shoes)\b",
             re.I,
         ),
     ),
@@ -520,6 +615,40 @@ class PassageIndex:
         best = scored[0][0]
         return [d for score, d in scored if score == best]
 
+    def mentioned_places(self, message: str) -> list[Destination]:
+        """Every distinct destination named in a message, in the order mentioned.
+
+        Overlapping names keep the most specific ("Elmina Castle" over "Elmina").
+        """
+        msg = set(tokens(message))
+        capitalised = {
+            t for w in re.findall(r"\S+", message)[1:] if w[:1].isupper() for t in tokens(w)
+        }
+        found = []
+        for d in self.destinations:
+            if not d.distinctive or not d.distinctive <= msg:
+                continue
+            if all(len(t) <= 3 for t in d.distinctive) and not d.distinctive <= capitalised:
+                continue
+            found.append(d)
+        matched = {d.passage_id: {t for t in d.name_tokens if t in msg} for d in found}
+        specific = [
+            d
+            for d in found
+            if not any(matched[d.passage_id] < matched[o.passage_id] for o in found if o is not d)
+        ]
+        best: dict[frozenset, Destination] = {}
+        for d in specific:
+            key = d.distinctive
+            full = matched[d.passage_id] == set(d.name_tokens)
+            current = best.get(key)
+            if current is None or (
+                full and matched[current.passage_id] != set(current.name_tokens)
+            ):
+                best[key] = d
+        order = tokens(message)
+        return sorted(best.values(), key=lambda d: min(order.index(t) for t in d.distinctive))
+
     def unknown_words(self, message: str) -> list[str]:
         """Content words that occur in no passage, e.g. places outside the corpus."""
         return [
@@ -624,6 +753,22 @@ def is_person(destination: Destination) -> bool:
     return bool(PERSON.search(destination.passage[:300]))
 
 
+def is_non_english(message: str) -> bool:
+    words = tokens(message)
+    hits = sum(w in NON_ENGLISH_WORDS for w in words)
+    subdotted = bool(re.search(r"[ẹọṣ]", message.lower()))
+    return bool(words) and (subdotted or (hits >= 2 and hits / len(words) >= 0.3))
+
+
+def mentioned_countries(message: str) -> list[str]:
+    found = []
+    for match in COUNTRY_PATTERN.finditer(normalise(message)):
+        name = COUNTRY_ALIASES.get(match.group(1), match.group(1))
+        if name not in found:
+            found.append(name)
+    return found
+
+
 def mentioned_country(message: str) -> str | None:
     msg = normalise(message)
     for name in (
@@ -706,6 +851,10 @@ class Router:
         self.index = index
         self.guides = guides or {}
         self.min_search_score = min_search_score
+        self._word_counts_by_country: dict[str, Counter] = {}
+        for d in index.destinations:
+            key = normalise(d.country)
+            self._word_counts_by_country.setdefault(key, Counter()).update(tokens(d.passage))
         self._places = [d for d in index.destinations if not is_person(d) and len(d.passage) >= 600]
 
     def recommend_variety(self, country: str | None, k: int = 6) -> tuple[list, list[str]]:
@@ -760,6 +909,51 @@ class Router:
             if len(picks) == k:
                 break
         return picks
+
+    def nearby(self, anchor: Destination, k: int = 6, radius_km: float = 80) -> list:
+        """The closest places to a destination, with distances in km."""
+        if anchor.latitude is None:
+            return []
+        found = []
+        for d in self._places:
+            if d is anchor or d.latitude is None:
+                continue
+            km = distance_km(anchor, d)
+            if 0.5 <= km <= radius_km:
+                found.append((km, d))
+        found.sort(key=lambda x: x[0])
+        return found[:k]
+
+    def guide_search(self, facet: str, message: str) -> Destination | None:
+        """A country guide on a facet that mentions the message's own words ("jollof", "Twi").
+
+        Rarer words count for more; words that only frame the question ("say", "thank")
+        are ignored; ties go to the country whose destinations mention the words most.
+        """
+        words = {
+            t
+            for t in tokens(message)
+            if len(t) >= 3 and t not in QUERY_WORDS | GENERIC | PHRASE_WORDS
+        }
+        guides = [g for (_country, f), g in self.guides.items() if f == facet]
+        counts = [Counter(tokens(g.passage)) for g in guides]
+        doc_freq = {w: sum(w in c for c in counts) for w in words}
+        scored = []
+        for guide, count in zip(guides, counts, strict=True):
+            score = sum(
+                math.log(1 + len(guides) / doc_freq[w]) * min(count[w], 3)
+                for w in words
+                if count[w]
+            )
+            if score:
+                # Tie-break: how often the country's destination passages use these words
+                # (Twi is mentioned across Ghana, rarely elsewhere).
+                in_corpus = sum(
+                    self._word_counts_by_country.get(normalise(guide.country), Counter())[w]
+                    for w in words
+                )
+                scored.append((score, in_corpus, guide))
+        return max(scored, key=lambda x: (x[0], x[1]))[2] if scored else None
 
     def guide(self, country: str | None, facet: str) -> Destination | None:
         if not country:
@@ -820,8 +1014,17 @@ class Router:
         if pending:
             if text.isdigit() and 1 <= int(text) <= len(pending):
                 return Route("answer", pending[int(text) - 1], new_topic=True)
+            # A name counts as a pick only when the message asks nothing else
+            # ("What is near Elmina Castle?" is a nearby question, not a pick).
+            asks_more = bool(
+                question_facet(text)
+                or any(p.search(text) for p in (NEARBY, DISTANCE, COMPARE, PLAN, RECOMMEND))
+                or OUT_OF_SCOPE.search(text)
+                or requested_themes(text)
+                or requested_subjects(text)
+            )
             for d in pending:
-                if d.distinctive <= set(tokens(text)):
+                if not asks_more and d.distinctive <= set(tokens(text)):
                     return Route("answer", d, new_topic=True)
 
         if len(tokens(text)) <= 4:
@@ -829,6 +1032,59 @@ class Router:
                 return Route("greeting")
             if THANKS.search(text):
                 return Route("thanks")
+
+        if HELP.search(text):
+            return Route("help")
+        if is_non_english(text):
+            return Route("non_english")
+        if SMALL_TALK.search(text) and not self.index.mentioned_places(text):
+            return Route("smalltalk")
+
+        # Safety, health, visas, prices and bookings are declined before anything else,
+        # even when the question names a place.
+        if OUT_OF_SCOPE.search(text):
+            return Route("out_of_scope")
+
+        places = self.index.mentioned_places(text)
+        countries = mentioned_countries(text)
+
+        # "How far is Elmina from Cape Coast?" / "How do I get to Kakum?"
+        if DISTANCE.search(text):
+            # Pair with the current place only when the message refers to it ("from there").
+            from_topic = bool(topic) and bool(REFERS_BACK.search(text)) and len(places) == 1
+            pair = places[:2] if len(places) >= 2 else ([topic, *places] if from_topic else [])
+            pair = [d for d in pair if d is not None]
+            if len(pair) == 2 and pair[0] is not pair[1]:
+                return Route("distance", choices=pair)
+            target = places[0] if places else topic
+            if target:
+                return Route("transport", target)
+
+        # "What is near Elmina Castle?" / "anything nearby?"
+        if NEARBY.search(text):
+            anchor = places[0] if places else topic
+            if anchor:
+                close = self.nearby(anchor)
+                if close:
+                    return Route(
+                        "nearby",
+                        anchor,
+                        choices=[d for _, d in close],
+                        labels=[f"{km:.0f} km away" for km, _ in close],
+                        heading=f"Places near **{anchor.name}**:",
+                        describe=describe,
+                    )
+
+        # "Which is better, Kakum or Mole?" / "Is Ghana better than Nigeria?"
+        if COMPARE.search(text):
+            if len(places) >= 2:
+                return Route("compare", choices=places[:2])
+            if len(countries) >= 2:
+                guides = [self.guide(c, "overview") for c in countries[:2]]
+                if all(guides):
+                    return Route("compare", choices=guides)
+            if topic and len(places) == 1 and places[0] is not topic:
+                return Route("compare", choices=[topic, places[0]])
 
         facet = question_facet(text)
         if facet:
@@ -841,6 +1097,8 @@ class Router:
             if not country and place and place.country:
                 country = normalise(place.country)
             if not country and not place:
+                if found := self.guide_search(facet, text):
+                    return Route("fact", found, facet=facet)
                 return Route("which_place", facet=facet)
             best = self.best_for_facet(facet, country, place)
             if best is None:
@@ -854,6 +1112,40 @@ class Router:
             return Route("answer", topic)  # "it", "there": a follow-up on the current place
 
         country = mentioned_country(text)
+        where = f"in {country_title(country)}" if country else "across West Africa"
+        if PLAN.search(text):
+            picks, labels = self.recommend_variety(country)
+            return Route(
+                "plan",
+                choices=picks,
+                labels=labels,
+                describe=describe,
+                heading=(
+                    "I can't build day-by-day itineraries or estimate travel times, but here are "
+                    f"highlights {where} to plan around:"
+                ),
+            )
+        if ROMANTIC.search(text):
+            picks = self.recommend(country, set(), {"beach", "island"})
+            if picks:
+                return Route(
+                    "recommend",
+                    choices=picks,
+                    describe=describe,
+                    heading=(
+                        "I can't judge what's romantic, but beaches and islands are popular "
+                        f"for getaways {where}:"
+                    ),
+                )
+        if BUDGET.search(text):
+            picks, labels = self.recommend_variety(country)
+            return Route(
+                "recommend",
+                choices=picks,
+                labels=labels,
+                describe=describe,
+                heading=f"I don't have prices, but here's a mix of places worth visiting {where}:",
+            )
         overview = self.guide(country, "overview")
         if overview and ABOUT_COUNTRY.search(text) and only_country_named(text):
             return Route("answer", overview, new_topic=True)
@@ -872,8 +1164,6 @@ class Router:
         topic_words = set(tokens(f"{topic.name} {topic.passage}")) if topic else set()
         new_country = bool(country and topic and not in_country(topic, country))
         new_place = bool(named - topic_words)
-        if OUT_OF_SCOPE.search(text):
-            return Route("out_of_scope")
 
         themes = requested_themes(text)
         subjects = requested_subjects(text)

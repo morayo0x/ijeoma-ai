@@ -84,8 +84,6 @@ def test_numbered_choice_selects_destination(router):
     [
         "When was it created?",
         "Is it in the Central Region?",
-        "How do I get there from Accra?",
-        "Is it safe to visit?",
         "Does the park have a canopy walkway?",
     ],
 )
@@ -140,10 +138,10 @@ def test_recommendations_exclude_people(router):
     assert not names & {"Anne Pépin", "Signare", "Caty Louette", "Victoria Albis"}
 
 
-def test_anything_else_nearby_uses_current_country(router, kakum):
+def test_anything_else_nearby_lists_closest_places(router, kakum):
     route = router.route("What else is interesting nearby?", kakum, [])
-    assert route.kind == "recommend"
-    assert all(d.country == "Ghana" for d in route.choices)
+    assert route.kind == "nearby" and route.destination == kakum
+    assert route.choices and all(label.endswith("km away") for label in route.labels)
 
 
 def test_short_names_need_deliberate_mention(router):
@@ -394,3 +392,144 @@ def test_heading_names_the_request(router, message, heading_words):
 def test_waterfall_towns_are_not_waterfalls(router):
     names = {d.name for d in router.route("waterfalls in Togo", None, []).choices}
     assert names and all("Falls" in n or "falls" in n for n in names)
+
+
+# ---- request types added for common traveller questions ----
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Is it safe to travel to northern Nigeria?",
+        "Is Kakum safe?",
+        "Can you recommend a hotel in Accra?",
+        "Where can I stay near Kakum?",
+        "How much is the entrance fee at Kakum?",
+    ],
+)
+def test_safety_prices_and_lodging_are_declined_even_with_a_place(router, message):
+    assert router.route(message, None, []).kind == "out_of_scope"
+
+
+def test_safety_follow_up_is_declined(router, kakum):
+    assert router.route("Is it safe to visit?", kakum, []).kind == "out_of_scope"
+
+
+@pytest.mark.parametrize("message", ["Who are you?", "What can you do?", "help"])
+def test_help(router, message):
+    assert router.route(message, None, []).kind == "help"
+
+
+@pytest.mark.parametrize("message", ["Tell me a joke", "How are you?"])
+def test_small_talk(router, message):
+    assert router.route(message, None, []).kind == "smalltalk"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Bawo ni, ibo lo dara ju lati lo?",
+        "Abeg wetin una dey do?",
+        "Bonjour, quels sont les endroits à visiter?",
+    ],
+)
+def test_non_english(router, message):
+    assert router.route(message, None, []).kind == "non_english"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Plan a 3-day trip to Ghana",
+        "I have a week in Senegal, what should I do?",
+        "How many days do I need in Mali?",
+    ],
+)
+def test_trip_planning_offers_highlights(router, message):
+    route = router.route(message, None, [])
+    assert route.kind == "plan" and "itineraries" in route.heading and route.choices
+
+
+def test_nearby_named_place(router):
+    route = router.route("What is near Elmina Castle?", None, [])
+    assert route.kind == "nearby" and route.destination.name == "Elmina Castle"
+    assert len(route.choices) == len(route.labels) > 0
+
+
+def test_distance_between_two_places(router):
+    route = router.route("How far is Elmina from Cape Coast?", None, [])
+    assert route.kind == "distance"
+    assert {d.name for d in route.choices} == {"Elmina", "Cape Coast"}
+
+
+def test_distance_from_current_place(router, kakum):
+    route = router.route("How do I get there from Accra?", kakum, [])
+    assert route.kind == "distance" and kakum in route.choices
+
+
+def test_transport_to_one_place(router):
+    route = router.route("How do I get to Mole National Park?", None, [])
+    assert route.kind == "transport" and route.destination.name == "Mole National Park"
+
+
+def test_compare_two_places(router):
+    route = router.route("Which is better, Kakum or Mole?", None, [])
+    assert route.kind == "compare"
+    assert [d.name for d in route.choices] == ["Kakum National Park", "Mole National Park"]
+
+
+def test_compare_two_countries(guided):
+    route = guided.route("Is Ghana better than Nigeria?", None, [])
+    assert route.kind == "compare"
+    assert [d.passage_id for d in route.choices] == [
+        "country-ghana-overview",
+        "country-nigeria-overview",
+    ]
+
+
+def test_family_places(router):
+    route = router.route("Good places for kids in Ghana", None, [])
+    assert route.kind == "recommend" and "family" in route.heading
+    assert all(d.country == "Ghana" for d in route.choices)
+
+
+def test_romantic_and_budget_requests(router):
+    romantic = router.route("Romantic getaway in Cape Verde", None, [])
+    assert romantic.kind == "recommend" and "romantic" in romantic.heading
+    budget = router.route("Cheap places to visit", None, [])
+    assert budget.kind == "recommend" and "prices" in budget.heading
+
+
+@pytest.mark.parametrize(
+    ("message", "passage_id"),
+    [
+        ("What food should I try in Nigeria?", "country-nigeria-food"),
+        ("What should I wear when visiting a mosque in Mali?", "country-mali-etiquette"),
+    ],
+)
+def test_country_guide_facets(guided, message, passage_id):
+    route = guided.route(message, None, [])
+    assert route.kind == "fact" and route.destination.passage_id == passage_id
+
+
+def test_food_question_without_country_finds_the_right_guide(guided):
+    route = guided.route("What is jollof rice?", None, [])
+    assert route.kind == "fact" and route.destination.passage_id.endswith("-food")
+
+
+def test_phrase_question_finds_the_language_guide(guided):
+    route = guided.route("How do you say thank you in Twi?", None, [])
+    assert route.kind == "fact" and route.destination.passage_id == "country-ghana-language"
+
+
+def test_list_names_do_not_hijack_other_questions(router):
+    plan = router.route("Plan a 3-day trip to Ghana", None, [])
+    elmina = next(d for d in plan.choices if d.name == "Elmina Castle")
+    route = router.route("What is near Elmina Castle?", None, plan.choices)
+    assert route.kind == "nearby" and route.destination == elmina
+    assert router.route("Elmina Castle", None, plan.choices).kind == "answer"
+
+
+def test_transport_does_not_assume_the_current_place(router, kakum):
+    assert router.route("How do I get to Mole National Park?", kakum, []).kind == "transport"
+    assert router.route("How far is Mole from here?", kakum, []).kind == "distance"

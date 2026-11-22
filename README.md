@@ -246,7 +246,16 @@ country's regional guide, and the reply names that source; requests for current
 weather are declined. Country-level questions ("tell me about Ghana", "what
 languages are spoken in Mali?") are answered from Wikivoyage country guides
 (`pipeline/out/country_guides.jsonl`, fetched with `pipeline/fetch_country_guides.py`),
-which are used only by the chat and are not part of the training or test data. Places that are not in the corpus are reported as not
+which are used only by the chat and are not part of the training or test data;
+the same guides answer questions about food, festivals and local customs.
+
+The chat also lists the places nearest to a destination and straight-line
+distances between two places (from coordinates in the data), compares two places
+or two countries, offers highlights to build a trip around (it does not produce
+itineraries), suggests family-friendly places, and explains what it can do.
+Questions about safety, health, visas, prices, accommodation and bookings are
+declined even when they name a place, and messages in other languages receive a
+polite English-only reply. Places that are not in the corpus are reported as not
 found rather than guessed, visa, safety and similar questions are declined, and
 every answer cites its source. Launch it on Colab with
 [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with
