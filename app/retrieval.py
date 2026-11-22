@@ -558,6 +558,7 @@ class Route:
     describe: bool = False  # for lists: the user asked for a description of each item
     heading: str = ""  # for lists: what the list is ("waterfalls worth visiting in Togo")
     labels: list[str] = field(default_factory=list)  # for lists: each item's kind of place
+    picked: bool = False  # the message only picked an item from the previous list
 
 
 class PassageIndex:
@@ -1114,18 +1115,23 @@ class Router:
         if refs and (describe or re.search(r"\bdescri\w*", text, re.I)):
             return Route("describe_list", choices=refs, describe=True)
         if len(refs) == 1 and TELL_ABOUT.search(text):
-            return Route("answer", refs[0], new_topic=True)
+            return Route("answer", refs[0], new_topic=True, picked=True)
         if pending and describe and not (requested_themes(text) or requested_subjects(text)):
             return Route("describe_list", choices=pending, describe=True)
 
         # A reply to a "which one did you mean?" list: a number or a name.
         if pending:
             if text.isdigit() and 1 <= int(text) <= len(pending):
-                return Route("answer", pending[int(text) - 1], new_topic=True)
+                return Route("answer", pending[int(text) - 1], new_topic=True, picked=True)
             # A name counts as a pick only when the message asks nothing else
             # ("What is near Elmina Castle?" is a nearby question, not a pick).
             asks_more = bool(
-                question_facet(text)
+                re.search(
+                    r"\b(what|where|how|which|who|when|why|is|are|does|do|can|could|should)\b",
+                    text,
+                    re.I,
+                )
+                or question_facet(text)
                 or any(p.search(text) for p in (NEARBY, DISTANCE, COMPARE, PLAN, RECOMMEND))
                 or OUT_OF_SCOPE.search(text)
                 or requested_themes(text)
@@ -1133,7 +1139,7 @@ class Router:
             )
             for d in pending:
                 if not asks_more and d.distinctive <= set(tokens(text)):
-                    return Route("answer", d, new_topic=True)
+                    return Route("answer", d, new_topic=True, picked=True)
 
         if len(tokens(text)) <= 4:
             if GREETING.match(text):

@@ -640,3 +640,11 @@ def test_country_list_items_can_be_picked_and_compared(guided):
     assert guided.route(str(ghana), None, countries).destination.name == "Ghana"
     route = guided.route("compare Ghana and Senegal", None, countries)
     assert route.kind == "compare" and [g.name for g in route.choices] == ["Ghana", "Senegal"]
+
+
+def test_question_mentioning_a_listed_country_is_not_a_pick(guided):
+    countries = guided.route("Which countries are in West Africa?", None, []).choices
+    route = guided.route("What countries border Togo?", None, countries)
+    assert route.kind == "answer" and route.destination.passage_id == "country-togo-overview"
+    assert not route.new_topic or route.destination.name == "Togo"
+    assert guided.route("Togo", None, countries).destination.name == "Togo"

@@ -317,7 +317,7 @@ def build_app(model, router: Router) -> gr.Blocks:
             return answer if RE_REFUSAL.search(answer) else OUT_OF_SCOPE
 
         destination = route.destination
-        if pending and destination in pending:
+        if route.picked:
             # The user picked from a list ("2"); ask about the chosen place itself.
             message = f"Tell me about {destination.name}."
         if route.new_topic or state["topic"] != destination.passage_id:
