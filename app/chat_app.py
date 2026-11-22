@@ -80,6 +80,23 @@ FACET_TEXT = {
     "festivals": "festivals and holidays",
     "etiquette": "local customs and etiquette",
 }
+GREETING_REPLIES = (
+    (
+        "Hi there",
+        "What would you like to explore today? You could ask about *Sukur*, or for ideas, "
+        "like *beaches in Ghana*.",
+    ),
+    (
+        "Hello again",
+        "Where are you thinking of going? Try *waterfalls in Togo* or *what is near Elmina "
+        "Castle?*",
+    ),
+    (
+        "Hey",
+        "Ask me about a place, a country, or a kind of trip, for example *wildlife in "
+        "Senegal* or *tell me about Mali*.",
+    ),
+)
 HELP_TEXT = (
     "I'm **Ijeoma**, a guide to places to visit in West Africa. I answer from travel guides "
     "and encyclopaedia articles about 1,600 destinations in 16 countries, and I cite my "
@@ -150,7 +167,14 @@ def describe_labels(destination: Destination, raw: str) -> str:
 
 
 def new_state() -> dict:
-    return {"topic": None, "history": [], "pending": [], "custom": None, "user_name": None}
+    return {
+        "topic": None,
+        "history": [],
+        "pending": [],
+        "custom": None,
+        "user_name": None,
+        "greetings": 0,
+    }
 
 
 def build_app(model, router: Router) -> gr.Blocks:
@@ -204,9 +228,11 @@ def build_app(model, router: Router) -> gr.Blocks:
             state["user_name"] = name
             return "Sure, let's start again. " + WELCOME.split("! ", 1)[1]
         if route.kind == "greeting":
-            if state.get("user_name"):
-                return f"Hello again, {state['user_name']}! " + WELCOME.split("! ", 1)[1]
-            return WELCOME
+            # The welcome is already on screen, so a greeting gets a short, varied reply.
+            state["greetings"] = state.get("greetings", 0) + 1
+            name = f", {state['user_name']}" if state.get("user_name") else ""
+            opener, idea = GREETING_REPLIES[(state["greetings"] - 1) % len(GREETING_REPLIES)]
+            return f"{opener}{name}! {idea}"
         if route.kind == "thanks":
             return "You're welcome! Ask me about another place whenever you like."
         if route.kind == "not_found":
