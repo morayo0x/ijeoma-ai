@@ -370,3 +370,27 @@ def test_description_of_each_is_honoured(router):
 
 def test_plain_lists_are_not_described_by_the_model(router):
     assert not router.route("where are interesting places to visit?", None, []).describe
+
+
+def test_general_request_gives_a_labelled_mix(router):
+    route = router.route("where are interesting places to visit?", None, [])
+    assert route.heading.startswith("Here's a mix of places")
+    assert len(route.labels) == len(route.choices) >= 5
+    assert {"Ruins", "Wildlife & safari", "Waterfall"} <= set(route.labels)
+
+
+@pytest.mark.parametrize(
+    ("message", "heading_words"),
+    [
+        ("give me ruins to visit", "ruins"),
+        ("waterfalls in Togo", "waterfalls worth visiting in Togo"),
+        ("safari in Senegal", "wildlife and safari spots worth visiting in Senegal"),
+    ],
+)
+def test_heading_names_the_request(router, message, heading_words):
+    assert heading_words in router.route(message, None, []).heading
+
+
+def test_waterfall_towns_are_not_waterfalls(router):
+    names = {d.name for d in router.route("waterfalls in Togo", None, []).choices}
+    assert names and all("Falls" in n or "falls" in n for n in names)

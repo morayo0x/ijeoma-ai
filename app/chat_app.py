@@ -146,7 +146,8 @@ def build_app(model, router: Router) -> gr.Blocks:
                 text, _ = model.generate(prompts.summarize(d.passage, "One sentence"))
             else:
                 text = preview(d)
-            items.append(f"{i}. **{d.label}**: {text}")
+            kind = f" · *{route.labels[i - 1]}*" if i <= len(route.labels) else ""
+            items.append(f"{i}. **{d.label}**{kind}: {text}")
         return "\n".join(items)
 
     def reply(message: str, state: dict) -> str:
@@ -181,7 +182,8 @@ def build_app(model, router: Router) -> gr.Blocks:
             state["topic"], state["history"] = None, []
             state["pending"] = [d.passage_id for d in route.choices]
             return (
-                f"Here are some places worth exploring:\n\n{format_list(route)}\n\n"
+                f"{route.heading or 'Here are some places worth exploring:'}\n\n"
+                f"{format_list(route)}\n\n"
                 "Reply with a number or a name to hear more, or ask about a country or a "
                 "kind of place (beaches, wildlife, history, museums)."
             )

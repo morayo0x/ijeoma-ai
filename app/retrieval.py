@@ -106,7 +106,7 @@ CHANGE = re.compile(
 SUBJECTS = {
     "waterfall": ("waterfall", "waterfalls", "falls", "cascade", "cascades", "chutes"),
     "ruins": ("ruins", "ruin", "archaeological", "excavation", "excavations", "ancient"),
-    "beach": ("beach", "beaches", "praia", "plage"),
+    "beach": ("beach", "beaches", "plage"),
     "lake": ("lake", "lakes", "lagoon"),
     "mountain": ("mountain", "mountains", "mount", "mont", "monte", "peak", "plateau", "hills"),
     "cave": ("cave", "caves", "grotto"),
@@ -119,6 +119,7 @@ SUBJECTS = {
     "forest": ("forest", "forests", "rainforest"),
     "zoo": ("zoo",),
     "market": ("market", "markets"),
+    "wildlife": ("park", "reserve", "sanctuary", "game", "wildlife", "biosphere"),
 }  # fmt: skip
 SUBJECT_TRIGGERS = {
     "waterfall": ("waterfall", "waterfalls", "falls", "cascade"),
@@ -136,7 +137,80 @@ SUBJECT_TRIGGERS = {
     "forest": ("forest", "forests", "rainforest"),
     "zoo": ("zoo",),
     "market": ("market", "markets"),
+    "wildlife": ("wildlife", "safari", "animals", "elephants", "lions", "game"),
 }  # fmt: skip
+SUBJECT_TITLES_EXTRA = {"wildlife": "wildlife and safari spots"}
+NAME_NEEDS_THEME = {"wildlife"}
+# Themes under which a description-only mention counts (a waterfall *town* does not).
+SUBJECT_THEMES = {
+    "waterfall": {"Landscape & Scenery", "Nature & Wildlife"},
+    "ruins": {"Archaeological Site", "Historic Site", "Monument & Memorial"},
+    "beach": {"Coast & Beach", "Town or Area Guide", "Nature & Wildlife"},
+    "lake": {"Landscape & Scenery", "Nature & Wildlife"},
+    "mountain": {"Landscape & Scenery", "Nature & Wildlife"},
+    "cave": {"Landscape & Scenery", "Nature & Wildlife", "Sacred & Ceremonial"},
+    "island": {"Coast & Beach", "Nature & Wildlife", "Town or Area Guide", "Historic Site"},
+    "museum": {"Museum & Gallery"},
+    "mosque": {"Sacred & Ceremonial"},
+    "fort": {"Fort & Castle"},
+    "palace": {"Palace & Royal Site"},
+    "river": {"Nature & Wildlife", "Landscape & Scenery"},
+    "forest": {"Nature & Wildlife"},
+    "zoo": {"Family & Leisure", "Nature & Wildlife"},
+    "market": {"Town or Area Guide", "General Attraction"},
+    "wildlife": {"Nature & Wildlife"},
+}
+
+# Kinds of place offered when someone asks for "interesting places" with no preference.
+VARIETY = (
+    ("Ruins", set(), {"ruins"}),
+    ("Wildlife & safari", set(), {"wildlife"}),
+    ("Waterfall", set(), {"waterfall"}),
+    ("Beach", set(), {"beach"}),
+    ("Fort & castle", set(), {"fort"}),
+    ("Sacred site", {"Sacred & Ceremonial"}, set()),
+    ("Historic town", {"Historic Site"}, set()),
+    ("Museum", set(), {"museum"}),
+)
+SUBJECT_TITLES = {
+    "waterfall": "waterfalls", "ruins": "ruins and archaeological sites", "beach": "beaches",
+    "lake": "lakes", "mountain": "mountains and hills", "cave": "caves", "island": "islands",
+    "museum": "museums", "mosque": "mosques", "fort": "forts and castles", "palace": "palaces",
+    "river": "rivers", "forest": "forests", "zoo": "zoos", "market": "markets",
+}  # fmt: skip
+THEME_TITLES = {
+    "Coast & Beach": "beaches and coastal spots", "Nature & Wildlife": "nature and wildlife spots",
+    "Landscape & Scenery": "scenic places", "Museum & Gallery": "museums and galleries",
+    "Fort & Castle": "forts and castles", "Historic Site": "historic places",
+    "Archaeological Site": "archaeological sites", "Monument & Memorial": "monuments",
+    "Palace & Royal Site": "palaces and royal sites", "Sacred & Ceremonial": "sacred sites",
+    "Family & Leisure": "family-friendly places", "Town or Area Guide": "towns and cities",
+}  # fmt: skip
+
+
+def list_heading(country: str | None, themes: set[str], subjects: set[str]) -> str:
+    where = f"in {country_title(country)}" if country else "across West Africa"
+    if subjects:
+        titles = {**SUBJECT_TITLES, **SUBJECT_TITLES_EXTRA}
+        kinds = " and ".join(titles[s] for s in sorted(subjects))
+    elif themes and len(themes) <= 2:
+        kinds = " and ".join(THEME_TITLES.get(t, t.lower()) for t in sorted(themes))
+    elif themes:
+        kinds = "places"
+        kinds = "historic and cultural places" if themes & set(THEME_TITLES) else kinds
+    else:
+        return f"Here's a mix of places worth visiting {where}, one of each kind:"
+    return f"Here are some {kinds} worth visiting {where}:"
+
+
+def country_title(country: str) -> str:
+    special = {
+        "cote d'ivoire": "Côte d'Ivoire",
+        "gambia": "The Gambia",
+        "guinea-bissau": "Guinea-Bissau",
+    }
+    return special.get(country, country.title())
+
 
 # Words in a request mapped to the dataset's theme labels.
 THEME_KEYWORDS = {
@@ -365,6 +439,8 @@ class Route:
     facet: str | None = None  # for "fact" and "fact_missing": language or climate
     place: str = ""  # "fact_missing": the country or place asked; "introduce": the user's name
     describe: bool = False  # for lists: the user asked for a description of each item
+    heading: str = ""  # for lists: what the list is ("waterfalls worth visiting in Togo")
+    labels: list[str] = field(default_factory=list)  # for lists: each item's kind of place
 
 
 class PassageIndex:
@@ -526,11 +602,22 @@ def requested_subjects(message: str) -> set[str]:
 
 
 def mentions_subject(destination: Destination, subjects: set[str]) -> int:
-    """2 if the name mentions a requested subject, 1 if only the description does, else 0."""
-    words = {w for s in subjects for w in SUBJECTS[s]}
-    if set(destination.name_tokens) & words:
-        return 2
-    return 1 if set(tokens(destination.passage[:1500])) & words else 0
+    """How well a destination matches requested subjects ("waterfall", "ruins").
+
+    2 if its name says so ("Kintampo Waterfalls"); 1 if its description does and its
+    theme fits (a forest reserve whose text says "ancient" is not ruins); else 0.
+    """
+    name = set(destination.name_tokens)
+    for s in subjects:
+        # "park" or "reserve" in a name is not enough for wildlife: the theme must fit too.
+        theme_ok = s not in NAME_NEEDS_THEME or destination.theme in SUBJECT_THEMES[s]
+        if name & set(SUBJECTS[s]) and theme_ok:
+            return 2
+    passage = set(tokens(destination.passage[:1500]))
+    for s in subjects:
+        if passage & set(SUBJECTS[s]) and destination.theme in SUBJECT_THEMES.get(s, set()):
+            return 1
+    return 0
 
 
 def is_person(destination: Destination) -> bool:
@@ -620,6 +707,22 @@ class Router:
         self.guides = guides or {}
         self.min_search_score = min_search_score
         self._places = [d for d in index.destinations if not is_person(d) and len(d.passage) >= 600]
+
+    def recommend_variety(self, country: str | None, k: int = 6) -> tuple[list, list[str]]:
+        """One notable place of each kind (ruins, wildlife, waterfall…), labelled."""
+        picks, labels, countries = [], [], set()
+        for label, themes, subjects in VARIETY:
+            candidates = self.recommend(country, themes, subjects, k=12)
+            fresh = [d for d in candidates if d not in picks]
+            if not country:  # spread across countries when the whole region is in scope
+                fresh = [d for d in fresh if d.country not in countries] or fresh
+            if fresh:
+                picks.append(fresh[0])
+                labels.append(label)
+                countries.add(fresh[0].country)
+            if len(picks) == k:
+                break
+        return picks, labels
 
     def recommend(
         self, country: str | None, themes: set[str], subjects: set[str] = frozenset(), k: int = 5
@@ -796,9 +899,16 @@ class Router:
         ):
             if not country and topic and not (themes or subjects):
                 country = normalise(topic.country)  # "anything else interesting?" near here
-            picks = self.recommend(country, themes, subjects)
+            heading = list_heading(country, themes, subjects)
+            if themes or subjects:
+                picks = self.recommend(country, themes, subjects)
+                labels = []  # the heading already says what kind of place these are
+            else:
+                picks, labels = self.recommend_variety(country)
             if picks:
-                return Route("recommend", choices=picks, describe=describe)
+                return Route(
+                    "recommend", choices=picks, describe=describe, heading=heading, labels=labels
+                )
 
         if topic and not new_country and not new_place:
             return Route("answer", topic)
