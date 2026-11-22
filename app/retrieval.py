@@ -209,7 +209,7 @@ FACETS = {
     ),
     "climate": (
         re.compile(
-            r"\b(weather|climate|rainy|rains?|dry season|wet season|seasons?|harmattan|temperatures?|"
+            r"\b(weather|forecast|climate|rainy|rains?|dry season|wet season|seasons?|harmattan|temperatures?|"
             r"humid|humidity|best time (to|for) (visit|go|travel)|when (should|to) (i )?(visit|go))\b",
             re.I,
         ),
