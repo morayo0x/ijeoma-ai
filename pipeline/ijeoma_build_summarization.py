@@ -23,7 +23,7 @@ import sys
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ijeoma_build import validate  # noqa: E402
+from ijeoma_build import validate
 
 
 def read_jsonl(path):
@@ -36,8 +36,7 @@ def read_jsonl(path):
 def inherited_sides(out_dir):
     """Map passage_id -> 'train' | 'test' from the main build, if present."""
     side = {}
-    for name, label in (("pairs_train_full.jsonl", "train"),
-                        ("pairs_test_full.jsonl", "test")):
+    for name, label in (("pairs_train_full.jsonl", "train"), ("pairs_test_full.jsonl", "test")):
         for r in read_jsonl(os.path.join(out_dir, name)):
             pid = r.get("passage_id")
             if pid:
@@ -82,7 +81,7 @@ def run(out_dir, test_frac, seed):
             by_country[str(p["country"])].add(p["passage_id"])
 
     rng = random.Random(seed)
-    for country, pids in by_country.items():
+    for pids in by_country.values():
         pids = sorted(pids)
         rng.shuffle(pids)
         k = max(1, round(len(pids) * test_frac)) if len(pids) >= 3 else 0
@@ -99,14 +98,18 @@ def run(out_dir, test_frac, seed):
     te_pids = {p["passage_id"] for p in test}
     assert not (tr_pids & te_pids), "passage in both summarization splits"
 
-    main_train = {r["passage_id"] for r in
-                  read_jsonl(os.path.join(out_dir, "pairs_train_full.jsonl"))
-                  if r.get("passage_id")}
-    main_test = {r["passage_id"] for r in
-                 read_jsonl(os.path.join(out_dir, "pairs_test_full.jsonl"))
-                 if r.get("passage_id")}
-    cross_a = te_pids & main_train      # summarise-test seen in QA-train
-    cross_b = tr_pids & main_test       # QA-test seen in summarise-train
+    main_train = {
+        r["passage_id"]
+        for r in read_jsonl(os.path.join(out_dir, "pairs_train_full.jsonl"))
+        if r.get("passage_id")
+    }
+    main_test = {
+        r["passage_id"]
+        for r in read_jsonl(os.path.join(out_dir, "pairs_test_full.jsonl"))
+        if r.get("passage_id")
+    }
+    cross_a = te_pids & main_train  # summarise-test seen in QA-train
+    cross_b = tr_pids & main_test  # QA-test seen in summarise-train
     assert not cross_a, f"{len(cross_a)} test passages are in the main train split"
     assert not cross_b, f"{len(cross_b)} train passages are in the main test split"
 
@@ -114,8 +117,7 @@ def run(out_dir, test_frac, seed):
     def dump(rows, name, lab_format):
         with open(os.path.join(out_dir, name), "w", encoding="utf-8") as fh:
             for r in rows:
-                rec = ({"input": r["input"], "output": r["output"]}
-                       if lab_format else r)
+                rec = {"input": r["input"], "output": r["output"]} if lab_format else r
                 fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
     dump(train, "summarization_training_data.jsonl", True)

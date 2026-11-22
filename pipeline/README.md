@@ -1,4 +1,4 @@
-> **Historical note:** this README describes the pipeline as first built (template pairs only). The teacher pass has since been run on OpenAI, adding digests, abstractive QA and multi-turn dialogues. Current numbers are in the top-level README and `out/build_report.json`.
+> **Note:** This document describes the pipeline as originally built, before the teacher pass was run. Current dataset statistics are in the repository README and `out/build_report.json`; the teacher now supports OpenAI (`--provider openai`) and generates multi-turn dialogues.
 
 # Ijeoma AI — dataset augmentation pipeline
 

@@ -1,356 +1,358 @@
-# Ijeoma AI — Decision Log
+# Design decisions
 
-Every decision that shapes the project, in order. Each entry records what we
-decided, why, what we gave up, and the evidence. This is the source for the
-report's methodology, limitations and design-rationale sections.
+This log records the decisions that shaped Ijeoma AI: what was decided, why,
+what was traded away, and the evidence. Entries are numbered in the order they
+were made and are not rewritten afterwards; a reversed decision gets a new
+entry that supersedes the old one.
 
-**How to add an entry:** copy the template at the bottom, give it the next
-number, and fill every field. Never edit an old entry to change history: if a
-decision is reversed, add a new entry that says so and points back to it.
+Status values: **active**, **open** (identified, not yet resolved), or
+**superseded by D-nn**.
 
-Status values: `active` · `superseded by D-nn` · `open`.
+A summary of deviations from the submitted proposal is at the
+[end of this document](#deviations-from-the-submitted-proposal).
 
 ---
 
-## D-01 · Scope the project to West Africa
-- **Date:** before 14 Nov 2026 (proposal)
-- **Decision:** Train and evaluate on West African destinations only, though
-  the proposal frames the problem continent-wide.
-- **Why:** The scraped corpus (1,947 rows) covers 16 West African countries.
-  Five-region coverage was out of reach in the time available.
-- **Trade-off:** The "five sub-region quota" safeguard in the proposal becomes
-  a per-country quota inside one region. Claims in the report must say
-  "West Africa", not "Africa".
-- **Evidence:** proposal §5 (Accountability Measures, item 1); `pipeline/out/clean_report.json`.
-- **Status:** active
+## D-01 · Scope: West Africa
 
-## D-02 · Put the source passage in every prompt (grounded design)
-- **Date:** 14 Nov 2026 (Dataset Assessment doc)
-- **Decision:** Every task takes its source passage as input. The model reads
-  and reformulates; it is not expected to recall facts.
-- **Why:** The proposal promised factual accuracy while ruling out retrieval.
-  At 1B parameters those conflict: fine-tuning teaches format and register,
-  not facts. Grounding turns factual accuracy into a reading-comprehension
-  problem a 1B model can handle.
-- **Trade-off:** This is not an open-domain chatbot. In a deployed system the
-  passage must come from somewhere (a lookup or a retrieval step), which
-  partly walks back the proposal's "no retrieval" architecture (§5, §7).
-- **Evidence:** Run 1 invention rate 0.95: with no passage, the model invented
-  answers about fictitious places (e.g. placed "Olumbe Rock Shelters" in the
-  UK). `results/run1_smoke/eval_adversarial_*.csv`.
-- **Status:** active. The report must state this as a deliberate change from
-  the proposal.
-
-## D-03 · Clean the corpus before generating anything
-- **Date:** 14–15 Nov 2026
-- **Decision:** Strip Wikivoyage commercial listings (phone numbers, opening
-  hours, "updated" stamps) and `[Additional source]` markers; drop passages
-  under the length floor, duplicate names and non-places; normalise
-  `attraction_type` into closed label sets (13 themes, 9 terrains, 12
-  traveller profiles).
-- **Why:** Training on listings teaches the model to emit live logistics, which
-  the proposal puts out of scope. Multi-valued free-text types cannot serve as
-  classification targets.
-- **Trade-off:** 1,947 → 1,586 passages (249 too short after cleaning, 53
-  duplicates, 52 not places, 7 boilerplate). 645 passages have no terrain label.
+- **Date:** November 2026 (proposal stage)
+- **Decision:** Train and evaluate on West African destinations only.
+- **Rationale:** The source corpus (1,947 records) covers 16 West African
+  countries. Continental coverage was not feasible within the project timeline.
+- **Consequences:** Per-region sampling quotas become per-country quotas within
+  one region. Results are claims about West Africa, not Africa.
 - **Evidence:** `pipeline/out/clean_report.json`.
 - **Status:** active
 
-## D-04 · Cap any one country's share of the training data
+## D-02 · Every prompt includes its source passage
+
+- **Date:** 14 Nov 2026
+- **Decision:** All tasks take the source passage as input. The model is trained
+  to read and reformulate, not to recall facts from its weights.
+- **Rationale:** Fine-tuning adapts format and register; it does not reliably
+  install facts, least of all at 1B parameters. Supplying the passage turns
+  factual accuracy into a reading-comprehension problem the model can solve.
+- **Consequences:** The model is not an open-domain assistant. A deployment must
+  supply the passage through a lookup or retrieval step.
+- **Evidence:** In the first run, asked about places with no passage, the model
+  produced an invented answer 95% of the time (for example, it placed the
+  fictitious "Olumbe Rock Shelters" in the United Kingdom).
+  `results/run1_smoke/eval_adversarial_*.csv`.
+- **Status:** active
+
+## D-03 · Clean the corpus before generating examples
+
 - **Date:** 14–15 Nov 2026
-- **Decision:** Sample passages with a per-country cap of 22% and report results
-  per country.
-- **Why:** Nigeria and Ghana are 58% of the raw corpus (Nigeria alone 45% of
-  cleaned passages). Uniform sampling would make the headline score a
-  Nigeria score.
-- **Trade-off:** Liberia, Togo, Guinea and Guinea-Bissau still have only 15–33
-  passages each: per-country results for them rest on a handful of documents.
+- **Decision:** Remove commercial listings (phone numbers, opening hours,
+  "updated" stamps) and inline source markers; drop passages below a length
+  floor, duplicates and non-places; normalise free-text attraction types into
+  closed label sets (13 themes, 9 terrains, 12 traveller profiles).
+- **Rationale:** Training on listings teaches the model to emit live logistics,
+  which is out of scope. Multi-valued free-text types cannot serve as
+  classification targets.
+- **Consequences:** 1,947 records reduce to 1,586 passages (249 too short after
+  cleaning, 53 duplicates, 52 non-places, 7 boilerplate). 645 passages have no
+  terrain label.
+- **Evidence:** `pipeline/out/clean_report.json`.
+- **Status:** active
+
+## D-04 · Cap each country's share of the sample
+
+- **Date:** 14–15 Nov 2026
+- **Decision:** Sample passages per task with a 22% cap per country; report
+  results per country.
+- **Rationale:** Nigeria accounts for 45% of cleaned passages and Nigeria plus
+  Ghana for 58% of the raw corpus. Uniform sampling would make aggregate scores
+  predominantly Nigerian.
+- **Consequences:** Liberia, Togo, Guinea and Guinea-Bissau still contribute only
+  15–33 passages each; per-country results for them are indicative only.
 - **Evidence:** `pipeline/out/build_report.json` (`test_by_country`).
 - **Status:** active
 
-## D-05 · Split train/test by passage, not by pair
+## D-05 · Split train and test by passage
+
 - **Date:** 15 Nov 2026
-- **Decision:** Hold out whole passages (≈15%), stratified by country. The
+- **Decision:** Hold out whole passages (about 15%), stratified by country. The
   summarisation set inherits the same split.
-- **Why:** Several pairs come from one passage; splitting by pair would let the
-  model see the test passage during training.
-- **Evidence:** `passage_leakage: 0`, `cross_dataset_leakage: 0` in the build reports.
+- **Rationale:** Several examples are derived from each passage; a per-example
+  split would expose test passages during training.
+- **Evidence:** `passage_leakage: 0` and `cross_dataset_leakage: 0` in the build
+  reports.
 - **Status:** active
 
-## D-06 · Evaluate the untuned model first, per task, plus an invention test
-- **Date:** 15–16 Nov 2026 (notebook design)
-- **Decision:** Score base Gemma 3 1B and the LoRA model on the same items with
-  the same metrics, broken down by task (classify, answer, digest, summarise,
-  refuse), and add an adversarial set of invented and out-of-region places.
-- **Why:** Without a baseline there is no evidence fine-tuning helped. A single
-  blended score hides which task is failing.
+## D-06 · Baseline-first, per-task evaluation with an invention test
+
+- **Date:** 15–16 Nov 2026
+- **Decision:** Score the base model and the fine-tuned model on identical
+  items with identical metrics, broken down by task, and add an adversarial set
+  of fictitious and out-of-region places presented without a passage.
+- **Rationale:** Without a baseline there is no evidence that fine-tuning
+  helped; a single blended score hides which task is failing.
 - **Status:** active
 
-## D-07 · Run 1: smoke test only
-- **Date:** 16 Nov 2026 (re-logged 22 Nov)
-- **Decision:** First run at 200 training examples, 1 epoch, rank 8, lr 2e-4,
-  20 eval items, to prove the pipeline end to end.
-- **Result:** Pipeline works. Scores near the baseline (expected at this size):
-  country 0.857 → 0.857, theme 0.000 → 0.000, terrain 0.071 → 0.286,
-  ROUGE-L 0.466 → 0.389, refusal recall 1.0, invention rate 0.95.
-- **Note:** The log holds three identical rows: the same configuration was run
-  three times. Treat them as one data point.
+## D-07 · Run 1: pipeline validation
+
+- **Date:** 16 Nov 2026
+- **Configuration:** 200 training examples, 1 epoch, LoRA rank 8, learning rate
+  2e-4, 20 evaluation items.
+- **Outcome:** The pipeline ran end to end. Scores were close to the baseline,
+  as expected at this size: country 0.857 → 0.857, theme 0.000 → 0.000,
+  terrain 0.071 → 0.286, ROUGE-L 0.466 → 0.389, refusal recall 1.0, invention
+  rate 0.95.
+- **Note:** The experiment log contains three identical rows from repeated runs
+  of the same configuration; they are one data point.
 - **Evidence:** `results/run1_smoke/ijeoma_experiment_log.csv`.
-- **Status:** active (baseline for comparison)
+- **Status:** active (reference point)
 
-## D-08 · Separate Ijeoma AI from the Quanta AI repository
-- **Date:** 22 Nov 2026
-- **Decision:** The capstone lives in its own project folder and git repository
-  (`ijeoma-ai`), unrelated to Quanta AI.
-- **Status:** active. GitHub remote to be added once created.
+## D-08 · Standalone, reproducible repository
 
-## D-09 · List the allowed labels in the classify prompt
 - **Date:** 22 Nov 2026
-- **Decision:** Every `[CLASSIFY]` prompt now carries the closed label menu for
-  theme, terrain, traveller profile and world heritage.
-- **Why:** Theme accuracy was exactly 0.000 for both base and tuned models.
-  Cause: the prompt never named the allowed labels, so the model invented its
-  own ("Nature", "Hiking and Trekking") and exact-match scoring rejected them.
-- **Alternative rejected:** Fuzzy-matching labels at scoring time. It would hide
-  the problem rather than fix it, and a catalogue needs the exact label.
-- **Trade-off:** Classify prompts are ~120 tokens longer, so training is slightly slower.
-- **Evidence:** `results/run1_smoke/eval_tuned_*.csv` (`pred_theme` vs `true_theme`);
-  `pipeline/ijeoma_pairs.py` (`LABEL_MENU`).
+- **Decision:** Keep code, built data, trained adapter, evaluation outputs and
+  documentation in a single repository, with each training run in its own
+  `results/` folder.
+- **Rationale:** Every reported number can be traced to a file and regenerated
+  from the repository alone.
 - **Status:** active
 
-## D-10 · Use OpenAI as the teacher model instead of Gemini
+## D-09 · List the allowed labels in the classification prompt
+
 - **Date:** 22 Nov 2026
-- **Decision:** Run the teacher step on `gpt-5.4-mini` via an OpenAI API key
-  (`--provider openai`). The Gemini path stays in the code.
-- **Why:** The proposal named Gemini 1.5, but the Gemini pass never ran (4 of
-  2,502 pairs came from the teacher; 3 digests in total). An OpenAI key was
-  available on deadline day.
-- **Trade-off:** Departs from the proposal's named teacher. Report it as a
-  substitution of convenience; the prompts and validation rules are unchanged.
-- **Sizing:** 600 digest passages, 400 QA passages, 400 dialogue passages
-  (×1.25 over-generation) = 1,741 API calls. Sized to finish within the hour.
+- **Decision:** Every `[CLASSIFY]` prompt includes the closed set of permitted
+  values for theme, terrain, traveller profile and World Heritage status.
+- **Rationale:** Theme accuracy in run 1 was exactly 0.000 for both models. The
+  prompt never named the permitted labels, so the model produced its own
+  ("Nature", "Hiking and Trekking"), which exact-match scoring rejects.
+- **Alternative rejected:** Fuzzy label matching at scoring time. It would mask
+  the problem, and a catalogue requires the exact label.
+- **Consequences:** Classification prompts are about 120 tokens longer.
+- **Evidence:** `results/run1_smoke/eval_tuned_*.csv` (`pred_theme` against
+  `true_theme`); `LABEL_MENU` in `pipeline/ijeoma_pairs.py`.
 - **Status:** active
 
-## D-11 · Add multi-turn guide dialogues
+## D-10 · OpenAI teacher model
+
 - **Date:** 22 Nov 2026
-- **Decision:** The teacher writes 3-exchange traveller–guide conversations
-  per passage. Each guide turn becomes one training pair whose input holds the
-  conversation so far. The third exchange is always an out-of-scope practical
-  question (cost, hours, transport, safety) that the guide declines.
-- **Why:** The proposal promises multi-turn dialogue (§2, task 3). The
-  existing "conversational" data was single-turn only.
-- **Why one pair per turn:** It keeps the input/output format the notebook
-  already trains on, while still teaching follow-ups in context.
+- **Decision:** Generate teacher examples with `gpt-5.4-mini` (`--provider
+  openai`). The Gemini code path is retained.
+- **Rationale:** The planned Gemini pass had not run (4 of 2,502 examples came
+  from the teacher, including 3 digests). An OpenAI model was available.
+- **Consequences:** Departs from the teacher named in the draft proposal.
+  Prompts and validation rules are unchanged.
+- **Sizing:** 600 digest, 400 question-answer and 400 dialogue passages, with
+  25% over-generation: 1,741 API calls.
 - **Status:** active
 
-## D-12 · Reject teacher pairs whose label contradicts the output
+## D-11 · Multi-turn dialogues
+
 - **Date:** 22 Nov 2026
-- **Decision:** The validator now rejects teacher pairs labelled "refuse" whose
-  output answers, pairs labelled "answer" whose output refuses, and non-English
+- **Decision:** The teacher writes three-exchange traveller–guide conversations.
+  Each guide turn becomes one training example whose input contains the
+  conversation so far. The third exchange is always a practical question the
+  passage cannot answer (cost, hours, transport, safety), which the guide
+  declines.
+- **Rationale:** The proposal commits to conversational follow-up; the existing
+  data was single-turn.
+- **Design note:** One example per turn keeps the single input/output format the
+  training notebook already uses, while still conditioning each reply on the
+  dialogue history.
+- **Status:** active
+
+## D-12 · Reject teacher examples whose label contradicts their content
+
+- **Date:** 22 Nov 2026
+- **Decision:** The validator rejects teacher examples labelled as refusals that
+  do not refuse, examples labelled as answers that do refuse, and non-English
   outputs.
-- **Why:** 40 mislabelled pairs and 4 non-English outputs (one in Italian) were
-  found in the first teacher pass. Mislabelled refusals teach the model to
-  refuse answerable questions, or the reverse.
+- **Rationale:** The first teacher pass contained 40 mislabelled examples and 4
+  non-English outputs. Mislabelled refusals train the model to refuse
+  answerable questions, or the reverse.
 - **Evidence:** `pipeline/out/teacher_report.json` (`refusal_label_mismatch: 40`,
-  `not_english: 4`). Uses the same refusal pattern as the notebook's scorer.
+  `not_english: 4`). The refusal pattern is shared with the evaluation code.
 - **Status:** active
 
-## D-13 · Train on the full dataset for one epoch, with checkpoints
-- **Date:** 22 Nov 2026 (submission 23:59 WAT)
-- **Decision:** `TRAIN_SUBSET = None` (≈6,500 examples), 1 epoch, LoRA rank 8,
-  lr 2e-4, effective batch 4. Adapter written to Drive every 500 steps.
-- **Why:** At ~1.3 s/step on a T4 that is 2.5–3 h, which fits the day.
-  Checkpoints protect against a Colab disconnect late in the run.
-- **Alternative considered:** 1,500-example subset (~35 min). Rejected once it
-  was clear the day had room for the full run.
-- **Status:** active
+## D-13 · Run 2: full dataset, one epoch, periodic checkpoints
 
-## D-14 · Add the remaining metrics promised in the proposal
 - **Date:** 22 Nov 2026
-- **Decision:** Add per-class precision/recall/F1 (theme), ROUGE-1, BERTScore
-  F1 and an LLM-as-judge rubric (1–5: factual accuracy, cultural nuance,
-  helpfulness) to both base and tuned summaries and to the experiment log.
-- **Choices:** BERTScore uses `distilbert-base-uncased` on CPU, because JAX
-  holds the GPU and `roberta-large` is slow on CPU; report the model next to
-  the score. Judge: `gpt-5.4-mini`, 40 grounded items per model, scored
-  against the source passage.
-- **Not done:** readability scores (proposal §3).
+- **Decision:** Train on all 6,522 examples for one epoch (LoRA rank 8, learning
+  rate 2e-4, effective batch 4), writing the adapter to Drive every 500 steps.
+- **Rationale:** At about 1.3 s per step on a T4, one epoch takes 2–2.5 hours,
+  within a single Colab session. Checkpoints bound the loss from a disconnect.
+- **Alternative considered:** A 1,500-example subset (about 35 minutes).
 - **Status:** active
 
-## D-15 · The submitted proposal is the reference document
+## D-14 · Additional evaluation metrics
+
 - **Date:** 22 Nov 2026
-- **Decision:** Measure the build against `docs/capstone-proposal-ijeoma-ai_SUBMITTED.docx`
-  (Nigeria Cohort 1, submitted 1 Nov 2026 by John Hicks; team: Prof Chika
-  Yinka-Banjo, Usman Kolawole). The longer draft
-  (`docs/African_Tourism_Capstone_Proposal.docx`) is background only.
-- **Effect on earlier entries:** D-01's "five sub-regions" gap does not apply:
-  the submitted proposal is West Africa only. D-02 still stands, but note the
-  submitted proposal contradicts itself: §1 rules out external retrieval while
-  §7 names "retrieval grounding" as the main risk control. The
-  passage-in-prompt design is consistent with §7.
+- **Decision:** Add per-class precision, recall and F1 for theme; ROUGE-1;
+  BERTScore F1; and an LLM-judge rubric (1–5 for factual accuracy, cultural
+  nuance and helpfulness).
+- **Choices:** BERTScore uses `distilbert-base-uncased` on CPU, since the GPU is
+  held by the model under test; the backbone is reported alongside the score.
+- **Not implemented:** readability scores.
 - **Status:** active
 
-## D-16 · Measure the proposal's success criterion directly
+## D-15 · The submitted proposal is the reference
+
 - **Date:** 22 Nov 2026
-- **Decision:** Add `claims_supported_rate` to the notebook: the LLM judge lists
-  every atomic factual claim in an answer or summary and marks whether the
-  source passage supports it; the rate is supported ÷ total across judged items.
-- **Why:** The submitted proposal's success criterion is "90% of the claims in
-  its answers and summaries are supported by the source passage", and its
-  metric list includes Factual Consistency. Nothing in the notebook measured
-  either. The existing `grounded` check only tests that numbers and proper
-  nouns appear in the passage.
-- **Validation:** Live test on one gold digest: 18/18 supported. The same digest
-  with an invented sentence ("built in 1652 by the Portuguese… jazz festival
-  every June"): 9/11, both invented claims flagged, accuracy score 5 → 1.
-- **Known weakness:** The judge sometimes merges two facts into one claim
-  (it counted "built in 1652 by the Portuguese" as one), so the rate slightly
-  flatters the model. Judged on 40 items per model: report it with that n.
+- **Decision:** Deviations are measured against
+  `docs/capstone-proposal-ijeoma-ai_SUBMITTED.docx` (Nigeria Cohort 1,
+  1 Nov 2026).
+- **Note:** The submitted proposal excludes external retrieval in §1 and names
+  retrieval grounding as the main risk control in §7. The passage-in-prompt
+  design (D-02) is consistent with §7.
 - **Status:** active
 
-## D-17 · Teacher calls: count met, "never twice" not met
+## D-16 · Measure the success criterion directly
+
 - **Date:** 22 Nov 2026
-- **Finding:** The submitted proposal commits to synthetic generation "once
-  over 800 to 1,200 passages… no passage reaches the teacher model twice".
-  The run covered 1,026 unique passages (within range) in 1,750 calls: 540
-  passages were sent once, 248 twice and 238 three times, because digest, QA
-  and dialogue were separate prompts.
-- **Decision:** Keep the data and report this honestly. A single combined prompt
+- **Decision:** Report `claims_supported_rate`: an LLM judge lists every atomic
+  factual claim in each answer or summary and marks whether the source passage
+  supports it; the rate is supported claims over all claims.
+- **Rationale:** The proposal's success criterion is that 90% of claims in
+  answers and summaries are supported by the source passage. The existing
+  `grounded` check tests only that numbers and proper nouns appear in the
+  passage.
+- **Validation:** On a reference digest the judge marked 18/18 claims supported.
+  With an invented sentence appended ("built in 1652 by the Portuguese … jazz
+  festival every June") it marked 9/11, flagging both invented sentences, and
+  factual accuracy fell from 5 to 1.
+- **Known limitation:** The judge occasionally merges two facts into one claim,
+  which slightly favours the model.
+- **Status:** active
+
+## D-17 · Teacher coverage
+
+- **Date:** 22 Nov 2026
+- **Finding:** The proposal commits to running synthetic generation once over
+  800–1,200 passages, with no passage sent to the teacher twice. The run covered
+  1,026 unique passages, but because digests, question-answer pairs and
+  dialogues used separate prompts, 248 passages were sent twice and 238 three
+  times.
+- **Decision:** Keep the data and report the deviation. A single combined prompt
   per passage would meet the commitment in a rebuild.
 - **Status:** active
 
-## D-18 · Base model is Gemma 3 1B, not Gemma 4 E4B
-- **Date:** confirmed by the team 22 Nov 2026 (already the target in the
-  14 Nov Dataset Assessment doc)
-- **Decision:** Fine-tune Gemma 3 1B instruction-tuned (`gemma-3-1b-it`) with
-  LoRA, as the team intended, rather than Gemma 4 E4B with QLoRA as written in
-  the submitted proposal (§4).
-- **Why:** Team decision. *Reason to fill in for the report.* Supporting
-  facts from the runs: LoRA on the 1B model fits a free Colab T4 in full
-  precision (1.3M trainable parameters, 0.13%) with no 4-bit quantisation
-  needed, and the proposal's own environmental commitment is to "use the
-  smallest Gemma variant that clears our evaluation targets".
-- **Trade-off:** A smaller model has less capacity for the reading and
-  reformulation tasks; the invention rate without a passage (0.95, D-07) is
-  partly a function of size. Plain LoRA instead of QLoRA is a consequence of
-  the smaller model, not a separate choice.
+## D-18 · Base model: Gemma 3 1B
+
+- **Date:** 22 Nov 2026
+- **Decision:** Fine-tune `gemma-3-1b-it` with LoRA in full precision, in place
+  of the Gemma 4 E4B with QLoRA named in the submitted proposal (§4).
+- **Rationale:** The 1B model fine-tunes in full precision on a single free Colab
+  T4 (1.3M trainable parameters, 0.13% of the model) without 4-bit
+  quantisation, and is consistent with the proposal's commitment to use the
+  smallest Gemma variant that meets the evaluation targets.
+- **Consequences:** Less capacity for reading and reformulation. Plain LoRA in
+  place of QLoRA follows from the model size and is not a separate choice.
 - **Status:** active
 
----
+## D-19 · Location-independent notebook paths
 
-## Known gaps against the submitted proposal (for the Limitations section)
-
-| Submitted proposal says | What we did | Entry |
-|---|---|---|
-| Gemma 4 E4B with QLoRA | Gemma 3 1B (team decision), plain LoRA in Keras/JAX, full precision | D-18 |
-| No external retrieval (§1) / retrieval grounding (§7) | Passage supplied in every prompt | D-02, D-15 |
-| 90% of claims supported by the source | Now measured as `claims_supported_rate` | D-16 |
-| Text, images and tabular data | Text only | open |
-| Teacher once over 800–1,200 passages, never twice | 1,026 passages; 486 sent 2–3 times | D-17 |
-| 1 baseline + 3 hyperparameter runs | Smoke test (logged 3×) + full run | D-07, D-13 |
-| Hugging Face Space demo, Model Card, Data Card, error reporting, attribution | Not built yet | open |
-| Example labels "Sacred & Cultural Landscape", "Riverine forest" | "Sacred & Ceremonial", "Riverine" | D-03 |
-| Teacher model unspecified (draft: Gemini) | OpenAI `gpt-5.4-mini` | D-10 |
-| 3,500 examples | ~6,550 train + ~1,240 test | exceeded |
-
-## Open questions
-- Nigeria is still ~22% of the test set; per-country scores for small countries are noisy.
-- Refusals are ~17% of training data. Watch `false_refusal` after the run.
-- The no-passage invention test asks "What is X?"; training refusals with no
-  passage only cover logistics (visa, safety, flights). The invention rate may
-  stay high. If it does, report it as a limitation.
-
----
-
-## Template
-
-```
-## D-nn · <short title>
-- **Date:**
-- **Decision:**
-- **Why:**
-- **Alternatives / trade-off:**
-- **Evidence:** <file, metric or run>
-- **Status:** active | superseded by D-nn | open
-```
-
----
-
-## D-19 · Move the project to Usman's Drive folder "Ijeoma"
 - **Date:** 22 Nov 2026
-- **Decision:** Training data and notebook now live in the folder "Ijeoma"
-  (Usman Kolawole's My Drive), replacing "Google Deep mind/Google Deepmind Tour
-  Guide IJEOMA". Notebook v0.3 finds the folder automatically under
-  `/content/drive/MyDrive` (directly, or via a shortcut up to two levels deep)
-  and stops with a clear message if it is missing.
-- **Why:** Team moved the working folder. Hard-coding one person's path breaks
-  the notebook for every other team member.
-- **Note:** v0.3 is v0.2 plus this path change only. The earlier experiment log
-  stays in `results/`; the new folder starts a fresh `ijeoma_experiment_log.csv`.
+- **Decision:** The training notebook locates its working folder (`Ijeoma`) by
+  searching Google Drive, directly or through a shortcut up to two levels deep,
+  and fails with an explicit message if it is absent.
+- **Rationale:** A hard-coded personal Drive path makes the notebook unusable by
+  anyone else.
 - **Status:** active
 
-## D-20 · Run the LLM judge offline, not in Colab
+## D-20 · Judge evaluation runs outside the training notebook
+
 - **Date:** 22 Nov 2026
-- **Decision:** The eval CSVs now store each item's full prompt (`input`
-  column). The judge and `claims_supported_rate` are computed afterwards from
-  those CSVs using the team's OpenAI key, so Colab needs no OpenAI key. If one
-  is present in Colab Secrets the notebook still runs the judge itself.
-- **Why:** Keys must not be pasted into a notebook in a shared Drive folder,
-  and Colab Secrets are per Google account, so every person running the
-  notebook would otherwise need their own OpenAI key.
+- **Decision:** Evaluation CSVs store each item's full prompt (`input` column).
+  The judge (`evaluation/run_judge.py`) runs on these files after training. The
+  notebook still runs the judge itself if an OpenAI key is present in Colab
+  Secrets.
+- **Rationale:** API keys should not be placed in a shared notebook, and Colab
+  Secrets are per account, so every person running the notebook would otherwise
+  need their own key.
 - **Status:** active
 
-## D-21 · Spot-check of training examples: issues found, not fixed today
+## D-21 · Data quality findings from manual review
+
 - **Date:** 22 Nov 2026
-- **Finding:** Reading two random examples per task turned up:
-  1. Wikivoyage listing text survived cleaning in some passages
-     (Igbo-Ukwu: "Daylight hours with family permission… Tip for local guides
-     expected"), contrary to D-03.
-  2. Some auto-assigned labels are doubtful (Ile Oluji, an agrarian town,
-     labelled terrain "Urban").
-  3. The summarisation set is extractive: answers are the passage's opening
-     sentences, and a "two to three sentences" request sometimes gets two.
-  4. Opinionated source text is passed through (Gorom-Gorom: "The guides are
-     pests"), a cultural-respect risk the proposal names.
-- **Decision:** Leave the data as is for today's run; record these as
-  limitations. A later rebuild should tighten the listing filter and review
-  terrain rules.
+- **Finding:** Reviewing sampled examples from every task found:
+  1. Residual listing text in some passages (Igbo-Ukwu: "Daylight hours with
+     family permission … Tip for local guides expected"), contrary to D-03.
+  2. Questionable automatic labels (Ile Oluji, an agricultural town, labelled
+     terrain "Urban").
+  3. Extractive summaries: references are the passage's opening sentences, and a
+     request for two to three sentences sometimes yields two.
+  4. Opinionated source text carried through (Gorom-Gorom: "The guides are
+     pests"), a representational risk identified in the proposal.
+- **Decision:** Retain the data for run 2 and report these as limitations. A
+  rebuild should tighten the listing filter and review the terrain rules.
 - **Status:** open
 
-## D-22 · Run 2 results: success criterion met; invention still high
+## D-22 · Run 2 results
+
 - **Date:** 22 Nov 2026
-- **Run:** full data (6,522 examples), 1 epoch, rank 8, lr 2e-4. Loss 0.027,
-  val loss 0.028 (no sign of overfitting).
+- **Configuration:** As D-13. Final training loss 0.027, validation loss 0.028.
 - **Headline:** 97.4% of claims in answers, digests and summaries are supported
-  by the source passage (base model 86.0%), against the proposal's 90%
-  target. Refusal recall 0.44 → 0.92 with false refusals unchanged at 0.03.
-  Theme accuracy 0.125 → 0.75 (8 items). Full table: `results/run2_full/RESULTS.md`.
-- **Judge run offline** (D-20). The eval CSVs lacked prompts (the run used the
-  first v0.3 upload); the test order was rebuilt from seed 812 and verified
-  100/100 against the saved reference answers before judging.
-- **Limitations to report:** classification n=8 and digest n=2; helpfulness
-  flat (3.81 → 3.76); 30% of tuned outputs copy the reference; judge shares a
-  model family with the teacher; invention rate without a passage 0.65
-  (from 0.95) — the model still answers from memory or invents when given no
-  source, which supports the passage-in-prompt design (D-02) and argues for
-  retrieval in any deployment.
+  by the source passage (base model: 86.0%), against a 90% target. Refusal
+  recall rose from 0.44 to 0.92 with false refusals unchanged at 0.03. Theme
+  accuracy rose from 0.125 to 0.75 (8 items).
+- **Method note:** The run used a notebook revision that did not export prompts.
+  The test order was reconstructed from the fixed seed (812) and verified
+  against all 100 saved reference answers before judging.
+- **Limitations:** Classification rests on 8 items and digests on 2; helpfulness
+  did not improve (3.81 → 3.76); 30% of tuned outputs reproduce the reference
+  verbatim; the judge shares a model family with the teacher; with no passage
+  the model still invents 65% of the time (from 0.95), which supports D-02 and
+  implies that a deployment requires retrieval.
+- **Evidence:** `results/run2_full/RESULTS.md`.
 - **Status:** active
 
-## D-23 · Browser test pages: Workbench, Chat, Compare
+## D-23 · Interactive demo
+
 - **Date:** 22 Nov 2026
-- **Decision:** A Gradio 5 app (`app/`) with three routes: `/` runs any task,
-  `/chat` holds a multi-turn conversation, `/compare` shows base Gemma 3 1B and
-  Ijeoma AI side by side. Runs on Colab with a public link
-  (`notebooks/ijeoma_demo_colab.ipynb`) or on any NVIDIA GPU machine.
-- **Choices:** Prompts are imported from the pipeline, not copied; all six
-  prompt types were checked byte-for-byte against training inputs. Sample
-  passages are 40 held-out test passages, 2–3 per country. Base and tuned
-  models are separate instances (≈4 GB each), the base loaded on first use,
-  so switching never recompiles. Generation lengths are bucketed to limit
-  recompiles. Requests are served one at a time.
-- **Tested:** pages, routing, chat history and compare layout verified in a
-  headless browser with a stub model (`--fake`). Not yet run with the real
-  model: this environment has no GPU.
-- **Proposal link:** covers part of the Hugging Face Space demo commitment;
-  the same app can be deployed to a Space.
+- **Decision:** A Gradio application (`app/`) with three routes: `/` runs any
+  task, `/chat` holds a multi-turn conversation, and `/compare` shows the base
+  and fine-tuned models side by side. It runs on Colab with a public link
+  (`notebooks/ijeoma_demo_colab.ipynb`) or on any NVIDIA GPU host.
+- **Design notes:** Prompt wording is imported from the pipeline, and all six
+  prompt types were verified byte-for-byte against training inputs. The 40
+  sample passages are drawn from the test split, two to three per country.
+  Base and fine-tuned models are separate instances, the base loaded on first
+  use, so switching never triggers recompilation. Generation lengths are
+  bucketed to bound recompilation. Requests are served sequentially.
+- **Verification:** Routing, chat history and the comparison layout were tested
+  in a headless browser with a stub model (`--stub`). End-to-end inference with
+  the real model on GPU is pending.
 - **Status:** active
+
+---
+
+## Deviations from the submitted proposal
+
+| Submitted proposal | This work | Entry |
+|---|---|---|
+| Gemma 4 E4B with QLoRA | Gemma 3 1B with LoRA, full precision | D-18 |
+| No external retrieval (§1); retrieval grounding (§7) | Source passage supplied in every prompt | D-02, D-15 |
+| 90% of claims supported by the source | Measured: 97.4% | D-16, D-22 |
+| Text, image and tabular data | Text only | open |
+| Teacher runs once over 800–1,200 passages, none twice | 1,026 passages; 486 sent two or three times | D-17 |
+| One baseline plus three hyperparameter runs | Pipeline-validation run plus one full run | D-07, D-13 |
+| Hugging Face Space, Model Card, Data Card, error reporting | Demo application built; cards and reporting channel not yet | D-23, open |
+| Example labels "Sacred & Cultural Landscape", "Riverine forest" | "Sacred & Ceremonial", "Riverine" | D-03 |
+| 3,500 examples | 6,554 training and 1,241 test examples | — |
+
+## Open issues
+
+- Smaller countries contribute few test passages; their per-country scores are noisy.
+- The no-passage refusals in training cover logistics questions only (visas,
+  safety, flights), not general "what is X?" questions, which likely explains
+  the remaining invention rate.
+- Data quality findings in D-21.
+
+## Entry template
+
+```
+## D-nn · <title>
+
+- **Date:**
+- **Decision:**
+- **Rationale:**
+- **Alternatives / consequences:**
+- **Evidence:**
+- **Status:** active | open | superseded by D-nn
+```

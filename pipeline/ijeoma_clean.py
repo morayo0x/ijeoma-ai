@@ -91,7 +91,7 @@ def classify_non_place(text: str, raw_type: str = "") -> str | None:
     rules are unsure about is kept and flagged for review instead.
     """
     if "destination guide" in str(raw_type).lower():
-        return None          # a town or area guide is a place by construction
+        return None  # a town or area guide is a place by construction
 
     head = first_sentences(text, 2)
     if not head:
@@ -104,8 +104,10 @@ def classify_non_place(text: str, raw_type: str = "") -> str | None:
     # A place definition only clears a passage that has no person signal;
     # when both fire, whichever defines the subject first wins.
     if person and place:
-        p_at = min((m.start() for m in (RE_PERSON_DEF.search(head),
-                                        RE_LIFESPAN.search(head)) if m), default=10**6)
+        p_at = min(
+            (m.start() for m in (RE_PERSON_DEF.search(head), RE_LIFESPAN.search(head)) if m),
+            default=10**6,
+        )
         pl_at = RE_PLACE_HEAD.search(head).start()
         return None if pl_at < p_at else "biography"
     if person:
@@ -123,14 +125,14 @@ def needs_review(text: str, raw_type: str = "") -> bool:
     description of the site.
     """
     if classify_non_place(text, raw_type) is not None:
-        return False                       # already rejected
+        return False  # already rejected
     head = text[:300]
     if RE_PERSON_DEF.search(head) or RE_LIFESPAN.search(head):
         return True
-    if len(RE_PRONOUN_RUN.findall(text[:600])) >= 2 \
-            and "destination guide" not in str(raw_type).lower():
-        return True
-    return False
+    return (
+        len(RE_PRONOUN_RUN.findall(text[:600])) >= 2
+        and "destination guide" not in str(raw_type).lower()
+    )
 
 
 # --------------------------------------------------------------------------
@@ -159,20 +161,45 @@ RE_BARE_TIME = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b", re.I)
 
 # Wikivoyage sections that are pure commercial listings - dropped wholesale.
 LISTING_SECTIONS = {
-    "eat", "drink", "sleep", "buy", "connect", "stay safe", "stay healthy",
-    "cope", "work", "get in", "get around", "respect",
+    "eat",
+    "drink",
+    "sleep",
+    "buy",
+    "connect",
+    "stay safe",
+    "stay healthy",
+    "cope",
+    "work",
+    "get in",
+    "get around",
+    "respect",
 }
 # Sections worth keeping from a destination guide.
 KEEP_SECTIONS = {
-    "understand", "see", "do", "go next", "history", "climate",
-    "landscape", "talk", "regions", "cities", "other destinations",
+    "understand",
+    "see",
+    "do",
+    "go next",
+    "history",
+    "climate",
+    "landscape",
+    "talk",
+    "regions",
+    "cities",
+    "other destinations",
 }
 
 
 def clean_html_entities(text: str) -> str:
     text = re.sub(r"<[^>]{1,80}>", "", text)
-    for a, b in (("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"),
-                 ("&gt;", ">"), ("&quot;", '"'), ("&#39;", "'")):
+    for a, b in (
+        ("&nbsp;", " "),
+        ("&amp;", "&"),
+        ("&lt;", "<"),
+        ("&gt;", ">"),
+        ("&quot;", '"'),
+        ("&#39;", "'"),
+    ):
         text = text.replace(a, b)
     return text
 
@@ -197,9 +224,7 @@ def line_is_listing(line: str) -> bool:
         return True
     if RE_HOURS.search(line) or RE_BARE_TIME.search(line):
         return True
-    if RE_UPDATED.search(line) and len(line) < 400:
-        return True
-    return False
+    return bool(RE_UPDATED.search(line)) and len(line) < 400
 
 
 def clean_content(text: str, source: str) -> str:
@@ -235,7 +260,7 @@ def clean_content(text: str, source: str) -> str:
         line = re.sub(r"^\s*[•\-\*]\s*", "", line)
         line = re.sub(r"^\s*\d{1,2}\s+(?=[A-Z])", "", line)
         line = re.sub(r"\s{2,}", " ", line).strip(" ,;.–-")
-        if len(line) < 25:          # fragments left over from listings
+        if len(line) < 25:  # fragments left over from listings
             continue
         # Dropping headings can butt two sentences together; keep the boundary.
         if line and line[-1] not in ".!?:;…":
@@ -287,7 +312,7 @@ THEME_OF_TYPE = {
     "fort": "Fort & Castle",
     "palace": "Palace & Royal Site",
     "historic site": "Historic Site",
-    "tourist attraction": None,   # unspecified - infer or fall back
+    "tourist attraction": None,  # unspecified - infer or fall back
     "attraction": None,
     "world heritage site": None,  # orthogonal flag, not a theme
 }
@@ -312,22 +337,43 @@ THEME_PRIORITY = [
 # palace in the mountains is a palace, not scenery. Within that order the
 # category with the most mentions wins, so one stray word cannot decide it.
 THEME_KEYWORDS = [
-    ("Sacred & Ceremonial", r"\b(sacred|shrine|grove|deity|deities|orisha|oracle|"
-                            r"mosque|church|cathedral|basilica|pilgrimage|ritual|"
-                            r"spiritual|place of worship|juju|ancestral)\b"),
-    ("Palace & Royal Site", r"\b(palace|royal court|royal enclosure|king'?s court|emir'?s? palace|oba'?s palace)\b"),
+    (
+        "Sacred & Ceremonial",
+        r"\b(sacred|shrine|grove|deity|deities|orisha|oracle|"
+        r"mosque|church|cathedral|basilica|pilgrimage|ritual|"
+        r"spiritual|place of worship|juju|ancestral)\b",
+    ),
+    (
+        "Palace & Royal Site",
+        r"\b(palace|royal court|royal enclosure|king'?s court|emir'?s? palace|oba'?s palace)\b",
+    ),
     ("Fort & Castle", r"\b(fort|fortress|castle|citadel|slave castle)\b"),
     ("Museum & Gallery", r"\b(museum|art gallery|exhibition hall)\b"),
-    ("Archaeological Site", r"\b(archaeolog|excavat|ruins|ancient settlement|rock art|petroglyph|burial|iron age|neolithic|stone age|relics)\b"),
+    (
+        "Archaeological Site",
+        r"\b(archaeolog|excavat|ruins|ancient settlement|rock art|petroglyph|burial|iron age|neolithic|stone age|relics)\b",
+    ),
     ("Monument & Memorial", r"\b(monument|memorial|statue|obelisk|cenotaph|mausoleum)\b"),
     ("Coast & Beach", r"\b(beach|seafront|shoreline|lagoon|coastal resort)\b"),
-    ("Nature & Wildlife", r"\b(national park|forest reserve|wildlife|game reserve|sanctuary|biosphere|wetland|conservation)\b"),
-    ("Landscape & Scenery", r"\b(waterfall|falls|escarpment|plateau|crater|hot spring|cave|viewpoint|mountain|peak)\b"),
-    ("Historic Site", r"\b(historic|heritage building|colonial building|slave trade|mission house|cultural landscape)\b"),
+    (
+        "Nature & Wildlife",
+        r"\b(national park|forest reserve|wildlife|game reserve|sanctuary|biosphere|wetland|conservation)\b",
+    ),
+    (
+        "Landscape & Scenery",
+        r"\b(waterfall|falls|escarpment|plateau|crater|hot spring|cave|viewpoint|mountain|peak)\b",
+    ),
+    (
+        "Historic Site",
+        r"\b(historic|heritage building|colonial building|slave trade|mission house|cultural landscape)\b",
+    ),
 ]
 
 TERRAIN_KEYWORDS = [
-    ("Coastal", r"\b(beach|coast|coastal|shoreline|seafront|atlantic ocean|bay|lagoon|peninsula)\b"),
+    (
+        "Coastal",
+        r"\b(beach|coast|coastal|shoreline|seafront|atlantic ocean|bay|lagoon|peninsula)\b",
+    ),
     ("Island", r"\b(island|islet|archipelago|isle)\b"),
     ("Riverine", r"\b(river|riverbank|riverine|delta|creek|estuary|tributary)\b"),
     ("Lake or wetland", r"\b(lake|wetland|marsh|swamp|reservoir|floodplain)\b"),
@@ -335,7 +381,10 @@ TERRAIN_KEYWORDS = [
     ("Mountain or highland", r"\b(mountain|hill|highland|plateau|escarpment|massif|peak|range)\b"),
     ("Desert or Sahel", r"\b(desert|sahara|sahel|dune|arid|semi-arid)\b"),
     ("Savannah", r"\b(savannah|savanna|grassland|steppe)\b"),
-    ("Urban", r"\b(city centre|city center|downtown|metropolis|urban|neighbourhood|neighborhood|district of)\b"),
+    (
+        "Urban",
+        r"\b(city centre|city center|downtown|metropolis|urban|neighbourhood|neighborhood|district of)\b",
+    ),
 ]
 
 PROFILE_OF_THEME = {
@@ -371,11 +420,13 @@ def normalise_theme(raw_type: str, content: str) -> tuple[str, bool, str]:
             return theme, wh, "type"
 
     head = content[:1200]
-    scores = [(len(re.findall(pat, head, re.I)), -i, theme)
-              for i, (theme, pat) in enumerate(THEME_KEYWORDS)]
+    scores = [
+        (len(re.findall(pat, head, re.I)), -i, theme)
+        for i, (theme, pat) in enumerate(THEME_KEYWORDS)
+    ]
     scores = [s for s in scores if s[0] > 0]
     if scores:
-        scores.sort(reverse=True)       # most mentions, then most specific
+        scores.sort(reverse=True)  # most mentions, then most specific
         return scores[0][2], wh, "keyword"
 
     return "General Attraction", wh, "fallback"
@@ -400,7 +451,7 @@ def infer_terrain(content: str) -> str | None:
             scored.append((-len(hits), idx, name))
     if not scored:
         return None
-    scored.sort()                      # most mentions, then most distinctive
+    scored.sort()  # most mentions, then most distinctive
     return scored[0][2]
 
 
@@ -413,7 +464,9 @@ def infer_terrain(content: str) -> str | None:
 RE_CHROME = re.compile(
     r"(top of page|skip to (?:main )?content|main menu|click here|read more|"
     r"learn more|subscribe|newsletter|all rights reserved|\u00a9\s*\d{4}|"
-    r"follow us|share this|cookie polic|privacy polic|terms of use)", re.I)
+    r"follow us|share this|cookie polic|privacy polic|terms of use)",
+    re.I,
+)
 
 
 def is_web_boilerplate(text: str) -> bool:
@@ -434,20 +487,18 @@ def run(in_path: str, out_dir: str, min_chars: int = 300, max_chars: int = 2400)
     report: dict[str, object] = {"rows_in": len(df)}
 
     df["content"] = df["content"].fillna("")
-    df["clean"] = [clean_content(c, s) for c, s in zip(df["content"], df["source"])]
+    df["clean"] = [clean_content(c, s) for c, s in zip(df["content"], df["source"], strict=True)]
 
     df["reject"] = ""
     df.loc[df["clean"].str.len() < min_chars, "reject"] = "too_short_after_cleaning"
-    df.loc[(df["reject"] == "") & df["clean"].map(is_web_boilerplate),
-           "reject"] = "web_boilerplate"
+    df.loc[(df["reject"] == "") & df["clean"].map(is_web_boilerplate), "reject"] = "web_boilerplate"
 
     reasons = [
         classify_non_place(c, t) if rej == "" else None
-        for c, t, rej in zip(df["clean"], df["attraction_type"], df["reject"])
+        for c, t, rej in zip(df["clean"], df["attraction_type"], df["reject"], strict=True)
     ]
     df["reject"] = [
-        f"not_a_place:{r}" if r else rej
-        for r, rej in zip(reasons, df["reject"])
+        f"not_a_place:{r}" if r else rej for r, rej in zip(reasons, df["reject"], strict=True)
     ]
 
     # Duplicate names: keep the longest cleaned passage.
@@ -465,48 +516,69 @@ def run(in_path: str, out_dir: str, min_chars: int = 300, max_chars: int = 2400)
     kept = df[df["reject"] == ""].copy()
     kept["passage"] = kept["clean"].map(lambda t: trim_passage(t, max_chars))
 
-    themes = [normalise_theme(t, c) for t, c in zip(kept["attraction_type"], kept["passage"])]
+    themes = [
+        normalise_theme(t, c) for t, c in zip(kept["attraction_type"], kept["passage"], strict=True)
+    ]
     kept["theme"] = [t[0] for t in themes]
     kept["world_heritage"] = [t[1] for t in themes]
     kept["theme_source"] = [t[2] for t in themes]
     kept["terrain"] = kept["passage"].map(infer_terrain)
     kept["traveler_profile"] = kept["theme"].map(PROFILE_OF_THEME)
     kept["needs_review"] = [
-        needs_review(p, t) for p, t in zip(kept["passage"], kept["attraction_type"])
+        needs_review(p, t) for p, t in zip(kept["passage"], kept["attraction_type"], strict=True)
     ]
     # Content-derived so that a later cleaning change does not renumber every
     # passage and silently invalidate an existing train/test split.
     kept["passage_id"] = [
-        "p" + hashlib.sha1(
-            f"{n}|{c}|{u}".encode("utf-8")
-        ).hexdigest()[:10]
-        for n, c, u in zip(kept["name"], kept["country"], kept["url"])
+        "p" + hashlib.sha1(f"{n}|{c}|{u}".encode()).hexdigest()[:10]
+        for n, c, u in zip(kept["name"], kept["country"], kept["url"], strict=True)
     ]
-    kept[kept["needs_review"]][["passage_id", "name", "country",
-                                "attraction_type", "theme"]] \
-        .to_csv(os.path.join(out_dir, "review.csv"), index=False)
+    kept[kept["needs_review"]][
+        ["passage_id", "name", "country", "attraction_type", "theme"]
+    ].to_csv(os.path.join(out_dir, "review.csv"), index=False)
 
-    cols = ["passage_id", "name", "country", "theme", "world_heritage",
-            "theme_source", "terrain", "traveler_profile", "needs_review", "attraction_type",
-            "source", "url", "latitude", "longitude", "passage"]
+    cols = [
+        "passage_id",
+        "name",
+        "country",
+        "theme",
+        "world_heritage",
+        "theme_source",
+        "terrain",
+        "traveler_profile",
+        "needs_review",
+        "attraction_type",
+        "source",
+        "url",
+        "latitude",
+        "longitude",
+        "passage",
+    ]
     out = kept[cols]
-    out.to_json(os.path.join(out_dir, "passages.jsonl"),
-                orient="records", lines=True, force_ascii=False)
+    out.to_json(
+        os.path.join(out_dir, "passages.jsonl"), orient="records", lines=True, force_ascii=False
+    )
 
-    report.update({
-        "rows_kept": int(len(out)),
-        "rejected": df[df["reject"] != ""]["reject"]
-                      .str.split(":").str[0].value_counts().to_dict(),
-        "chars_before_mean": float(df["content"].str.len().mean()),
-        "chars_after_mean": float(out["passage"].str.len().mean()),
-        "theme_counts": out["theme"].value_counts().to_dict(),
-        "theme_source": out["theme_source"].value_counts().to_dict(),
-        "terrain_counts": out["terrain"].fillna("(unassigned)").value_counts().to_dict(),
-        "world_heritage": int(out["world_heritage"].sum()),
-        "country_counts": out["country"].value_counts().to_dict(),
-    })
-    df[df["reject"] != ""][["name", "country", "attraction_type", "source", "reject"]] \
-        .to_csv(os.path.join(out_dir, "rejected.csv"), index=False)
+    report.update(
+        {
+            "rows_kept": len(out),
+            "rejected": df[df["reject"] != ""]["reject"]
+            .str.split(":")
+            .str[0]
+            .value_counts()
+            .to_dict(),
+            "chars_before_mean": float(df["content"].str.len().mean()),
+            "chars_after_mean": float(out["passage"].str.len().mean()),
+            "theme_counts": out["theme"].value_counts().to_dict(),
+            "theme_source": out["theme_source"].value_counts().to_dict(),
+            "terrain_counts": out["terrain"].fillna("(unassigned)").value_counts().to_dict(),
+            "world_heritage": int(out["world_heritage"].sum()),
+            "country_counts": out["country"].value_counts().to_dict(),
+        }
+    )
+    df[df["reject"] != ""][["name", "country", "attraction_type", "source", "reject"]].to_csv(
+        os.path.join(out_dir, "rejected.csv"), index=False
+    )
     with open(os.path.join(out_dir, "clean_report.json"), "w") as fh:
         json.dump(report, fh, indent=2, ensure_ascii=False)
     return report

@@ -1,200 +1,150 @@
 # Code walkthrough
 
-What every piece of code we wrote or changed does, line by line, so it can be
-explained to a reviewer. Read the **big picture** first; the sections after it can
-be read in any order. A glossary of terms is at the end.
+An annotated guide to the main components of the codebase: what each part does,
+how the parts connect, and the reasoning behind the less obvious lines. Code
+excerpts are taken from the repository; long excerpts are abridged with `...`.
+A glossary of terms is at the end.
 
-Code that already existed before 22 Nov (most of `pipeline/`, most of the
-training notebook) is not walked through here except where we changed it.
+## Contents
 
----
-
-## The big picture
-
-The project is four stages. Each stage produces files the next one reads.
-
-```
- ① BUILD DATA                ② TRAIN                    ③ EVALUATE                ④ SERVE
- pipeline/*.py               notebooks/…v0_3.ipynb      notebook + evaluation/    app/*.py
- passages ─► examples ─►     examples ─► LoRA adapter   adapter ─► scores         adapter ─► web pages
- (JSONL files)               (.npz file, 5 MB)          (CSV files, judge)        (Gradio)
-```
-
-1. **Build data.** 1,586 passages about places become ~7,800 training and test
-   examples. Code templates make some; a teacher model (OpenAI) writes the rest.
-   Every example is checked before it is kept.
-2. **Train.** Gemma 3 1B learns from the examples. Only small add-on matrices
-   (LoRA) are trained; the result is a 5 MB adapter file.
-3. **Evaluate.** The model answers 100 test questions before and after training;
-   code scores the answers, and a judge model checks every claim against the passage.
-4. **Serve.** A small web app loads Gemma plus the adapter and lets people try it.
-
-One idea runs through all four: **every prompt contains the source passage**,
-and the model is trained to answer only from it.
+1. [System overview](#1-system-overview)
+2. [Dataset construction](#2-dataset-construction)
+3. [Training notebook](#3-training-notebook)
+4. [Judge evaluation](#4-judge-evaluation)
+5. [Demo application](#5-demo-application)
+6. [Glossary](#6-glossary)
 
 ---
 
-## ① Build data
+## 1. System overview
 
-### 1.1 `pipeline/ijeoma_pairs.py` — the label list in classify prompts
+The system has four stages, each consuming the previous stage's output.
 
-**The problem it fixes:** the classify prompt never said which labels were
-allowed, so the model invented its own and scored 0 on theme.
+```
+ Dataset construction      Training                Evaluation               Demo
+ pipeline/*.py             notebooks/…v0_3.ipynb   notebook, evaluation/    app/*.py
+
+ passages ──► examples ──► LoRA adapter (.npz) ──► metrics, judge scores    adapter ──► web UI
+```
+
+1. **Dataset construction** turns 1,586 destination passages into about 7,800
+   examples. Deterministic templates produce some; a teacher model writes the
+   rest. Every example is validated before it is kept.
+2. **Training** fine-tunes Gemma 3 1B with LoRA, producing a 5 MB adapter.
+3. **Evaluation** scores the baseline and fine-tuned models on the same held-out
+   items, then an LLM judge checks each factual claim against its passage.
+4. **The demo** loads Gemma with the adapter and serves it through a web interface.
+
+One principle runs through every stage: **each prompt contains its source
+passage**, and the model is trained to answer only from it.
+
+---
+
+## 2. Dataset construction
+
+| Module | Responsibility |
+|---|---|
+| `ijeoma_clean.py` | Clean raw records into passages; assign labels |
+| `ijeoma_pairs.py` | Template examples: classification, extractive answers, refusals |
+| `ijeoma_teacher.py` | Teacher-generated digests, question-answer pairs and dialogues |
+| `ijeoma_build.py` | Validation, passage-level train/test split, output files |
+| `ijeoma_summarize.py`, `ijeoma_build_summarization.py` | Extractive summarisation set |
+
+### 2.1 Permitted labels in the classification prompt (`ijeoma_pairs.py`)
 
 ```python
-THEMES = ["Town or Area Guide", "Nature & Wildlife", "Museum & Gallery", …]
+THEMES = ["Town or Area Guide", "Nature & Wildlife", "Museum & Gallery", ...]
+TERRAINS = ["Coastal", "Riverine", "Island", ...]
+PROFILES = ["General, base for exploring", "Nature and wildlife, outdoor", ...]
 ```
-A Python **list** of the 13 allowed theme names. These are the exact strings the
-dataset uses as answers, so the model must copy one of them.
 
-```python
-TERRAINS = ["Coastal", "Riverine", "Island", …]
-PROFILES = ["General, base for exploring", "Nature and wildlife, outdoor", …]
-```
-The same for the 9 terrains and 12 traveller profiles.
+The closed label sets, as they appear in the dataset. The model must reproduce
+one of these strings exactly.
 
 ```python
 LABEL_MENU = (
     "Allowed values (copy one exactly):\n"
     f"theme: {' | '.join(THEMES)}\n"
-```
-Builds one block of text. `' | '.join(THEMES)` glues the list into
-`Town or Area Guide | Nature & Wildlife | …`. The `f"…{…}"` form is an
-**f-string**: Python replaces `{…}` with the value inside. `\n` is a new line.
-
-```python
     f"terrain: {' | '.join(TERRAINS)} | null\n"
+    f"traveler_profile: {' | '.join(PROFILES)}\n"
+    "world_heritage: true | false"
+)
 ```
-Terrain may also be `null` (no terrain), because 645 passages have none.
+
+`' | '.join(THEMES)` renders the list as `Town or Area Guide | Nature & Wildlife | …`.
+Terrain also allows `null`, since 645 passages have no terrain label.
 
 ```python
-"input": (f"{TASK_TAGS['classify']} {instr}\n{LABEL_MENU}\n\n"
-          f"PASSAGE:\n{row['passage']}"),
+"input": (
+    f"{TASK_TAGS['classify']} {instr}\n{LABEL_MENU}\n\n"
+    f"PASSAGE:\n{row['passage']}"
+),
 ```
-The classify prompt is now: tag `[CLASSIFY]` + instruction + **the label menu** +
-blank line + `PASSAGE:` + the passage text. Before, the menu line was missing.
 
----
+The classification prompt: task tag, instruction, label menu, then the passage.
+Without the menu, the model invented its own label wording and scored 0 on theme
+accuracy (decision D-09).
 
-### 1.2 `pipeline/ijeoma_teacher.py` — OpenAI teacher and conversations
+### 2.2 The OpenAI teacher (`ijeoma_teacher.py`)
 
-The teacher is a large model that reads a passage and writes training examples.
-The file existed for Gemini; we added an OpenAI option and a conversation task.
-
-#### Choosing the key
-
-```python
-def get_api_key(names=("GOOGLE_API_KEY", "GEMINI_API_KEY")) -> str:
-```
-Looks for an API key under a list of names. We made the list a parameter so the
-same function can look for `OPENAI_API_KEY`. It checks Colab Secrets first, then
-environment variables, and stops with a message if none is found.
-
-#### The OpenAI client
+The teacher is a larger model that writes training examples from a passage. The
+module originally targeted Gemini; `OpenAITeacher` adds an OpenAI backend with
+the same interface, so the rest of the module is backend-agnostic.
 
 ```python
 class OpenAITeacher:
-```
-A **class** groups data and functions together. This one talks to OpenAI and
-has the same shape as the Gemini `Teacher`, so the rest of the file can use
-either without knowing which.
-
-```python
     URL = "https://api.openai.com/v1/chat/completions"
-```
-The web address OpenAI's chat API listens on.
 
-```python
     def __init__(self, model: str):
         self.key = get_api_key(("OPENAI_API_KEY",))
         self.model = model
         self.lock = threading.Lock()
         self.calls = 0
 ```
-`__init__` runs when the object is created. It stores the key and model name, a
-**lock** (so two threads don't update `calls` at the same moment) and a counter
-of API calls made.
+
+The constructor reads the key (from Colab Secrets or the environment) and keeps
+a call counter guarded by a lock, since generation runs on several threads.
 
 ```python
-    def generate(self, prompt: str, retries: int = 4) -> str | None:
-        import urllib.request
+body = json.dumps(
+    {
+        "model": self.model,
+        "messages": [{"role": "user", "content": prompt}],
+        "response_format": {"type": "json_object"},
+    }
+).encode()
 ```
-Sends one prompt, returns the text reply, or `None` if it keeps failing.
-`urllib` is Python's built-in web library, so nothing extra needs installing.
+
+`response_format: json_object` constrains the reply to valid JSON. Every teacher
+prompt requests JSON, so this eliminates unparseable responses.
 
 ```python
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-        }).encode()
+for attempt in range(retries):
+    try:
+        ...
+        with urllib.request.urlopen(req, timeout=180) as r:
+            data = json.load(r)
+        ...
+        return (data["choices"][0]["message"]["content"] or "").strip()
+    except Exception as exc:
+        if attempt == retries - 1:
+            ...
+            return None
+        time.sleep(delay)
+        delay *= 2
 ```
-Builds the request: which model, the prompt as a user message, and
-`json_object`, which forces the reply to be valid JSON. All our teacher prompts
-ask for JSON, so this prevents unparseable replies. `.encode()` turns the text
-into bytes for sending.
 
-```python
-        delay = 2.0
-        for attempt in range(retries):
-            try:
-                req = urllib.request.Request(self.URL, data=body, headers={
-                    "Authorization": f"Bearer {self.key}",
-                    "Content-Type": "application/json"})
-                with urllib.request.urlopen(req, timeout=180) as r:
-                    data = json.load(r)
-```
-Tries up to 4 times. Each try sends the request with the key in the
-`Authorization` header and waits up to 180 seconds for the answer.
+Up to four attempts with exponential backoff (2, 4, 8 s) absorb rate limits and
+transient server errors. The request uses the standard library (`urllib`), so no
+additional dependency is needed.
 
-```python
-                with self.lock:
-                    self.calls += 1
-                return (data["choices"][0]["message"]["content"] or "").strip()
-```
-On success: count the call (inside the lock) and return the reply text, which
-OpenAI puts at `choices[0].message.content`.
+### 2.3 Multi-turn dialogues (`ijeoma_teacher.py`)
 
-```python
-            except Exception as exc:
-                if attempt == retries - 1:
-                    print(f"  giving up after {retries}: {exc}", file=sys.stderr)
-                    return None
-                time.sleep(delay)
-                delay *= 2
-```
-On failure (rate limit, network error): wait 2 s, then 4 s, then 8 s and retry.
-This is **exponential backoff**. After the last try, give up and return `None`.
-
-#### The conversation prompt
-
-```python
-DIALOGUE_PROMPT = """…Write a realistic conversation of exactly 3 exchanges
-between a curious Traveller and a knowledgeable Guide…
-In the third exchange the Traveller asks something practical the passage does NOT
-cover (cost, opening hours, transport, safety); the Guide says plainly the source
-does not cover it…
-{rules}
-Return: {{"turns": [{{"traveller": "...", "guide": "..."}}, …]}}
-DESTINATION: {name} ({country})
-PASSAGE:
-{passage}"""
-```
-The instruction sent to the teacher for each passage. `{rules}`, `{name}`,
-`{country}` and `{passage}` are filled in later. Double braces `{{ }}` mean a
-literal `{`, needed because the JSON example contains braces. `{rules}` adds the
-shared rules: use only the passage, no phone numbers or prices, no marketing
-words, skip if the passage is too thin.
-
-```python
-DIALOGUE_INSTRUCTION = (
-    "Continue the conversation as the guide. Answer the traveller's latest "
-    "question using only the passage below. …")
-```
-This is **not** sent to the teacher. It is the instruction placed in the
-*training example* that Gemma will learn from.
-
-#### Turning one conversation into training examples
+`DIALOGUE_PROMPT` asks the teacher for a three-exchange traveller–guide
+conversation in which every guide reply is drawn from the passage, and the
+third question asks for something the passage does not cover (cost, hours,
+transport, safety), which the guide declines. `dialogue_pairs` converts one
+conversation into training examples:
 
 ```python
 def dialogue_pairs(row, raw) -> list[dict]:
@@ -202,14 +152,9 @@ def dialogue_pairs(row, raw) -> list[dict]:
     if not obj or obj.get("skip"):
         return []
 ```
-`raw` is the teacher's reply. Parse it as JSON; if it failed or the teacher said
-`skip`, produce nothing.
 
-```python
-    turns = [t for t in (obj.get("turns") or [])
-             if str(t.get("traveller", "")).strip() and str(t.get("guide", "")).strip()]
-```
-Keep only turns where both the question and the answer are non-empty.
+Teacher replies that fail to parse, or in which the teacher declined because the
+passage was too thin, produce no examples.
 
 ```python
     out, history = [], []
@@ -218,666 +163,479 @@ Keep only turns where both the question and the answer are non-empty.
         answerable = bool(t.get("answerable", True))
         convo = "\n".join(history) if history else "(start of conversation)"
 ```
-Walk through the turns in order. `history` collects what has been said so far.
-For the first turn it is empty, so the prompt says `(start of conversation)`.
+
+`history` accumulates the dialogue so far. The first turn has none and is marked
+`(start of conversation)`.
 
 ```python
-        out.append({
-            "input": (f"{TASK_TAGS['answer']} {DIALOGUE_INSTRUCTION}\n\n"
-                      f"CONVERSATION SO FAR:\n{convo}\n\n"
-                      f"QUESTION: {q}\n\nPASSAGE:\n{row['passage']}"),
-            "output": a,
-```
-One training example per guide turn. The **input** is: instruction + the
-conversation so far + the new question + the passage. The **output** is the
-guide's answer. This is how the model learns to use earlier turns.
-
-```python
-            "task": "answer" if answerable else "refuse",
-            "subtype": f"dialogue_turn{i + 1}" if answerable else "dialogue_abstain",
-```
-Labels used later for scoring: an answerable turn is an `answer`; the third,
-unanswerable turn is a `refuse`.
-
-```python
+        out.append(
+            {
+                "input": (
+                    f"{TASK_TAGS['answer']} {DIALOGUE_INSTRUCTION}\n\n"
+                    f"CONVERSATION SO FAR:\n{convo}\n\n"
+                    f"QUESTION: {q}\n\nPASSAGE:\n{row['passage']}"
+                ),
+                "output": a,
+                "task": "answer" if answerable else "refuse",
+                ...
+            }
+        )
         history += [f"Traveller: {q}", f"Guide: {a}"]
-    return out
 ```
-Add this exchange to the history so the next turn sees it. One conversation of 3
-turns becomes 3 training examples.
 
-#### Running the jobs
+Each guide turn becomes one example whose input contains the conversation so
+far, the new question and the passage. This preserves the single input/output
+format used for training while conditioning each reply on the dialogue history.
+The final, unanswerable turn is labelled as a refusal.
 
-```python
-    dialogue_rows = country_quota_sample(rich, min(n_dialogue, len(rich)), 0.22, rng)
-```
-Choose which passages get a conversation: only "rich" ones (≥ 900 characters),
-with no country above 22% of the sample.
+The run loop builds a job list of (task, passage) pairs, skips any already in
+the cache (`teacher_cache.jsonl`), and executes the remainder in a thread pool.
+Because every response is cached, re-running the pipeline makes no API calls.
 
-```python
-    jobs = [("digest", r) for _, r in digest_rows.iterrows()] + \
-           [("qa", r) for _, r in qa_rows.iterrows()] + \
-           [("dialogue", r) for _, r in dialogue_rows.iterrows()]
-    jobs = [(t, r) for t, r in jobs if not cache.has(r["passage_id"], t)]
-```
-Make a to-do list of (job type, passage), then drop any already in the cache.
-The cache is why rerunning costs nothing.
+### 2.4 Validation of teacher examples (`ijeoma_build.py`)
+
+`validate(pair)` returns a list of failure codes; an empty list means the example
+is kept. Earlier rules check structure, length, contact details, and that every
+number and proper noun appears in the passage. Rule 6 applies to teacher
+examples only:
 
 ```python
-    teacher = (OpenAITeacher if args.provider == "openai" else Teacher)(args.model)
+if str(pair.get("subtype", "")).startswith(("teacher", "dialogue")):
+    refuses = bool(RE_REFUSAL.search(out))
+    if task == "refuse" and not refuses:
+        fails.append("refusal_label_mismatch")
+    if task in GROUNDED_TASKS and refuses:
+        fails.append("refusal_label_mismatch")
 ```
-Pick the OpenAI or Gemini class depending on `--provider`, and create it.
+
+`RE_REFUSAL` is a regular expression matching refusal phrasing ("does not
+cover", "passage does not", "I cannot", …). An example labelled as a refusal must
+refuse, and an example labelled as an answer must not; a contradiction would
+train the opposite behaviour. The same pattern is used to score refusals during
+evaluation.
 
 ```python
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        list(ex.map(work, jobs))
+    words = re.findall(r"[a-z]+", out.lower())
+    if words and sum(w in ENGLISH_MARKERS for w in words) / len(words) < 0.08:
+        fails.append("not_english")
 ```
-Run the jobs in parallel: 16 at once with `--workers 16`. Each `work` call sends
-one prompt and saves the reply to the cache.
+
+A lightweight language check: in English prose, common function words (`the`,
+`and`, `is`, …) make up roughly a quarter to a third of tokens. Below 8%, the text
+is almost certainly in another language. This rejected four Italian outputs.
 
 ---
 
-### 1.3 `pipeline/ijeoma_build.py` — the extra quality check
+## 3. Training notebook
 
-`validate(pair)` returns a list of reasons an example is bad; an empty list means
-keep it. We added rule 6.
+`notebooks/ijeoma_train_and_evaluate_v0_3.ipynb` loads the data, scores the
+baseline, trains, scores again and logs the run. The notable components are below.
 
-```python
-    if str(pair.get("subtype", "")).startswith(("teacher", "dialogue")):
-```
-Only check teacher-written examples. Template examples are correct by construction.
+### 3.1 Locating the working folder (section 2)
 
 ```python
-        refuses = bool(RE_REFUSAL.search(out))
+_hits = [
+    d
+    for d in ["/content/drive/MyDrive/Ijeoma"]
+    + glob.glob("/content/drive/MyDrive/*/Ijeoma")
+    + glob.glob("/content/drive/MyDrive/*/*/Ijeoma")
+    if os.path.exists(f"{d}/conversational_training_data.jsonl")
+]
 ```
-`RE_REFUSAL` is a **regular expression**, a text pattern, that matches refusal
-phrases such as "does not cover", "I cannot", "passage does not". `search` finds
-it anywhere in the answer. `refuses` is True if the answer contains a refusal.
 
-```python
-        if task == "refuse" and not refuses:
-            fails.append("refusal_label_mismatch")
-        if task in GROUNDED_TASKS and refuses:
-            fails.append("refusal_label_mismatch")
-```
-Reject an example labelled *refuse* that doesn't refuse, or labelled *answer*
-that does. Either would teach the model the wrong behaviour.
+The notebook searches for a Drive folder named `Ijeoma` at the top level or up to
+two levels down, and accepts it only if it contains the training data. If none
+is found it raises an error explaining what is missing. This avoids hard-coding
+any one user's Drive layout.
 
-```python
-        words = re.findall(r"[a-z]+", out.lower())
-        if words and sum(w in ENGLISH_MARKERS for w in words) / len(words) < 0.08:
-            fails.append("not_english")
-```
-A cheap language check. Split the answer into words and count how many are
-common English words (`the`, `and`, `is`…). English text is usually 25–40% such
-words; below 8% it is almost certainly another language. This caught the
-Italian answers.
-
----
-
-## ② Train — notebook changes (`ijeoma_train_and_evaluate_v0_3.ipynb`)
-
-### 2.1 Finding the Drive folder (section 2)
-
-```python
-_hits = [d for d in ["/content/drive/MyDrive/Ijeoma"]
-         + glob.glob("/content/drive/MyDrive/*/Ijeoma")
-         + glob.glob("/content/drive/MyDrive/*/*/Ijeoma")
-         if os.path.exists(f"{d}/conversational_training_data.jsonl")]
-```
-Look for a folder called `Ijeoma` at the top of My Drive, one level down, or two
-levels down (`*` matches any folder name). Keep only those that actually contain
-the training file, so a different folder that happens to be called Ijeoma is ignored.
-
-```python
-if not _hits:
-    raise FileNotFoundError("Could not find the 'Ijeoma' folder …")
-DRIVE = _hits[0]
-```
-Stop with a clear message if none is found; otherwise use the first match.
-
-### 2.2 Settings (section 2)
+### 3.2 Run configuration (section 2)
 
 ```python
 SMOKE_TEST = False
-TRAIN_SUBSET = 200 if SMOKE_TEST else None
+TRAIN_SUBSET = 200 if SMOKE_TEST else None  # None: use every training example
 EVAL_N = 20 if SMOKE_TEST else 100
 CHECKPOINT_EVERY = 500
 ```
-`SMOKE_TEST` switches between a quick check and the real run. In the real run,
-`TRAIN_SUBSET = None` means "use all examples", 100 test items are scored, and
-the adapter is saved every 500 steps.
 
-### 2.3 Saving during training (section 9)
+`SMOKE_TEST` switches between a 15-minute end-to-end check and the full run.
+
+### 3.3 Periodic checkpoints (section 9)
 
 ```python
 class SaveLoRA(keras.callbacks.Callback):
-```
-A Keras **callback** is code that Keras calls automatically during training.
-
-```python
     def on_train_batch_end(self, batch, logs=None):
         self.step += 1
         if self.every and self.step % self.every == 0:
+            ws = [
+                w
+                for w in self.model.weights
+                if "lora" in (getattr(w, "path", None) or w.name).lower()
+            ]
+            np.savez(
+                path,
+                names=...,
+                step=self.step,
+                **{f"w{j}": np.asarray(w) for j, w in enumerate(ws)},
+            )
 ```
-Called after every training step. `%` is remainder, so `step % 500 == 0` is true
-at steps 500, 1000, 1500…
+
+A Keras callback that runs after every training step. Every 500 steps it
+collects the LoRA weights (the only weights that change during training) and
+writes them, with their names, to a `.npz` file on Drive. A disconnect therefore
+loses at most 500 steps.
+
+### 3.4 Exporting prompts with predictions (section 7)
 
 ```python
-            ws = [w for w in self.model.weights
-                  if "lora" in (getattr(w, "path", None) or w.name).lower()]
+row = {"task": task, ..., "pred": pred, "ref": rec["output"], "input": rec["input"]}
 ```
-Pick out only the LoRA weights (their names contain "lora"). These are the
-1.3 million numbers training changes; the other billion stay as they were.
 
-```python
-            np.savez(path, names=np.array([...]), step=self.step,
-                     **{f"w{j}": np.asarray(w) for j, w in enumerate(ws)})
-```
-Write them to one `.npz` file on Drive: the weight names, the step number, and
-each weight as `w0`, `w1`, …. That file is the checkpoint.
+Each evaluation row stores the full prompt alongside the prediction and the
+reference, so the LLM judge can run afterwards from the CSV alone (D-20).
 
-### 2.4 Keeping the prompt in the results (section 7)
-
-```python
-row = {"task": task, "subtype": …, "country": …, "pred": pred, "ref": rec["output"],
-       "input": rec["input"]}
-```
-Each scored item now also stores its `input` (the full prompt). That lets the
-judge run later, outside Colab, without an OpenAI key in Colab.
-
-### 2.5 Extra metrics (section 10b)
+### 3.5 Additional metrics (section 10b)
 
 ```python
 def rouge_1(pred, ref):
     p, r = _C(pred.lower().split()), _C(ref.lower().split())
     overlap = sum((p & r).values())
-```
-**ROUGE-1** measures word overlap between the model's answer and the reference.
-`Counter` counts each word; `p & r` keeps the words in both, with the smaller
-count. `overlap` is how many words they share.
-
-```python
+    ...
     prec, rec = overlap / sum(p.values()), overlap / sum(r.values())
     return 2 * prec * rec / (prec + rec)
 ```
-Precision: share of the answer's words that are in the reference. Recall: share
-of the reference's words that are in the answer. F1 combines the two.
+
+ROUGE-1 F1: word counts for the prediction and reference, their multiset
+intersection, then precision, recall and their harmonic mean.
 
 ```python
-rep = classification_report(cl.true_theme, cl.pred_theme, output_dict=True, …)
+rep = classification_report(cl.true_theme, cl.pred_theme, output_dict=True, zero_division=0)
 summary["classify_theme_macroP"] = round(rep["macro avg"]["precision"], 3)
 ```
-scikit-learn computes precision and recall per theme. The **macro average** treats
-every theme equally, however rare.
+
+Per-class precision and recall for theme classification via scikit-learn,
+macro-averaged so that rare themes count as much as common ones.
 
 ```python
-from bert_score import score as bscore
-_, _, f1 = bscore(list(gen.pred), list(gen.ref), lang="en",
-                  model_type="distilbert-base-uncased", device="cpu")
+_, _, f1 = bscore(
+    list(gen.pred), list(gen.ref), lang="en", model_type="distilbert-base-uncased", device="cpu"
+)
 ```
-**BERTScore** compares meaning rather than exact words, using another small
-model (DistilBERT). It runs on CPU because Gemma is already using the GPU.
 
-The judge code in this section is the same as `evaluation/run_judge.py` below.
+BERTScore compares meaning rather than surface wording, using contextual
+embeddings from DistilBERT. It runs on the CPU because the GPU is occupied by
+the model under evaluation.
 
 ---
 
-## ③ Evaluate — `evaluation/run_judge.py`
+## 4. Judge evaluation
 
-Scores the model's answers using another model as a judge, and computes the
-proposal's success measure: **share of claims supported by the passage**.
-
-```python
-MODEL = os.environ.get("JUDGE_MODEL", "gpt-5.4-mini")
-GROUNDED = ("answer", "digest", "summarize")
-```
-Which judge model to use (overridable), and which tasks to judge: the ones that
-produce free text from a passage.
+`evaluation/run_judge.py` computes the project's primary metric,
+`claims_supported_rate`, together with 1–5 rubric scores.
 
 ```python
-PROMPT = """You are grading a travel assistant's answer…
-Score it against the SOURCE PASSAGE only, from 1 (poor) to 5 (excellent), on:
-- factual_accuracy …  - cultural_nuance …  - helpfulness …
-Also list every atomic factual claim in the answer … and mark whether the
-passage directly supports it…"""
+from ijeoma_build import RE_REFUSAL, extract_passage
 ```
-The judge's instructions. **Atomic claim** means one fact each: "built in 1652"
-and "built by the Portuguese" are two claims. We ask for a list rather than a
-count because the judge counted unreliably when asked for numbers directly.
+
+The refusal pattern and passage extraction are imported from the pipeline, so
+evaluation and validation share one definition of a refusal.
 
 ```python
-def judge(task, passage, answer):
-    body = json.dumps({"model": MODEL, "response_format": {"type": "json_object"},
-                       "messages": [{"role": "user", "content": PROMPT.format(
-                           task=task, passage=passage[:6000], answer=answer)}]}).encode()
+JUDGE_PROMPT = """You are grading a travel assistant's answer ...
+Also list every atomic factual claim in the answer (one fact each: a date, a
+builder, an event and a location are separate claims) and mark whether the
+passage directly supports it. ..."""
 ```
-Fills the prompt with the question, the passage (cut at 6,000 characters) and
-the model's answer, and requests JSON. The retry loop below it works like the teacher's.
+
+The judge is asked to **list** each atomic claim with a supported/unsupported
+mark, rather than to report counts. In testing, directly requested counts were
+unreliable; counting a list in code is not.
 
 ```python
-def main(path):
-    df = pd.read_csv(path)
-    items = df[df.task.isin(GROUNDED) & ~df.ref.astype(str).str.contains(RE_REFUSAL)]
+def call_judge(task, passage, answer, model, api_key, retries=4) -> dict | None:
 ```
-Read the results CSV. Keep rows whose task is in `GROUNDED` **and** (`&`) whose
-correct answer is **not** (`~`) a refusal. Judging a refusal for "claims" makes no sense.
+
+Sends one item to the judge with JSON output enforced and retries transient
+network failures with exponential backoff. The passage is truncated at 6,000
+characters.
 
 ```python
-    def work(row):
-        inp = row["input"]
-        cut = inp.find("PASSAGE:")
-        s = judge(inp[:cut].strip(), inp[cut + 8:].strip(), str(row["pred"]))
+def judge_item(row, model, api_key) -> dict | None:
+    prompt = row["input"]
+    task_text = prompt[: prompt.find("PASSAGE:")].strip()
+    verdict = call_judge(task_text, extract_passage(prompt), str(row["pred"]), model, api_key)
+    ...
+    claims = verdict.get("claims") or []
+    return {
+        ...
+        "claims_total": len(claims),
+        "claims_supported": sum(bool(c.get("supported")) for c in claims),
+        "unsupported": json.dumps([c.get("claim") for c in claims if not c.get("supported")]),
+    }
 ```
-Split the stored prompt into the part before `PASSAGE:` (the question) and the
-part after it (the passage). `+ 8` skips the 8 characters of "PASSAGE:".
+
+The stored prompt is split into the task text (before `PASSAGE:`) and the
+passage. The verdict is flattened into one record per item; unsupported claims
+are kept verbatim for manual review.
 
 ```python
-        claims = s.get("claims") or []
-        return {…, "claims_total": len(claims),
-                "claims_supported": sum(bool(c.get("supported")) for c in claims),
-                "unsupported": json.dumps([c.get("claim") for c in claims
-                                           if not c.get("supported")])}
+is_refusal = df["ref"].astype(str).map(lambda s: bool(RE_REFUSAL.search(s)))
+eligible = df[df["task"].isin(GROUNDED_TASKS) & ~is_refusal]
 ```
-Count the claims, count the supported ones (`True` counts as 1), and keep the
-text of unsupported claims so a person can check them.
+
+Only answers, digests and summaries whose reference is not a refusal are judged;
+claim support is undefined for a refusal.
 
 ```python
-    with ThreadPoolExecutor(8) as ex:
-        out = [r for r in ex.map(work, [r for _, r in items.iterrows()]) if r]
+total, supported = results.claims_total.sum(), results.claims_supported.sum()
+"claims_supported_rate": round(float(supported / total), 3)
 ```
-Judge 8 answers at a time; drop any the judge failed on.
 
-```python
-    tot, sup = res.claims_total.sum(), res.claims_supported.sum()
-    … "claims_supported_rate": round(sup / tot, 3) …
-```
-**The headline number**: all supported claims ÷ all claims, across every judged
-answer. 261 ÷ 268 = 0.974.
+The primary metric is pooled over all judged items: supported claims divided by
+all claims (261 / 268 = 0.974 for the reported run).
 
 ---
 
-## ④ Serve — the test pages (`app/`)
+## 5. Demo application
 
-Three files with one job each:
-
-| File | Job |
+| Module | Responsibility |
 |---|---|
-| `prompts.py` | builds the exact prompt text for each task |
-| `model.py` | loads Gemma + adapter, and turns a prompt into an answer |
-| `ijeoma_app.py` | the three web pages and the start-up options |
+| `app/prompts.py` | Builds the exact prompt for each task |
+| `app/model.py` | Loads Gemma and the adapter; generates text |
+| `app/ijeoma_app.py` | Page layout, event handlers, command-line interface |
 
-### 4.1 `app/prompts.py`
-
-```python
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "pipeline"))
-```
-Tells Python to also look in the `pipeline/` folder when importing.
-`__file__` is this file's path; `dirname` is its folder; `".."` goes up one level.
+### 5.1 Prompt construction (`prompts.py`)
 
 ```python
 from ijeoma_pairs import ANSWER_INSTRUCTION, CLASSIFY_INSTRUCTIONS, LABEL_MENU, TASK_TAGS
 from ijeoma_summarize import INSTR_NOTABLE, INSTR_ONE_LINE, INSTR_SUMMARY
 from ijeoma_teacher import DIALOGUE_INSTRUCTION, DIGEST_INSTRUCTIONS
 ```
-**The key design choice:** the instruction wording is imported from the code
-that built the training data, not retyped. A fine-tuned 1B model is sensitive to
-wording, so the app must send exactly what the model trained on. We verified all
-six prompt types match training examples character for character.
+
+Instruction wording is imported from the dataset pipeline, not restated. A
+fine-tuned 1B model is sensitive to paraphrase, so the demo must send the
+trained formats exactly; all six prompt types were verified byte-for-byte
+against training inputs.
 
 ```python
-NO_PASSAGE = "(none available)"
-
-def _passage(p):
-    p = (p or "").strip()
-    return p if p else NO_PASSAGE
+def _passage(text: str | None) -> str:
+    text = (text or "").strip()
+    return text or NO_PASSAGE
 ```
-If the passage box is empty, send `(none available)`, the same marker used in
-training for questions with no source.
+
+An empty passage becomes `(none available)`, the marker used in training for
+questions with no source.
 
 ```python
-def classify(passage):
-    return (f"{TASK_TAGS['classify']} {CLASSIFY_INSTRUCTIONS[0]}\n{LABEL_MENU}\n\n"
-            f"PASSAGE:\n{_passage(passage)}")
-```
-Same shape as training: tag, instruction, label menu, passage. The other builders
-(`answer`, `digest`, `summarize`) follow the same pattern.
-
-```python
-def dialogue(question, passage, history):
+def dialogue(question: str, passage: str, history: list[tuple[str, str]]) -> str:
     lines = []
     for q, a in history:
         lines += [f"Traveller: {q}", f"Guide: {a}"]
     convo = "\n".join(lines) if lines else "(start of conversation)"
 ```
-Turns the chat history into the `Traveller: … / Guide: …` lines the model saw in
-training. Same logic as `dialogue_pairs` in the teacher.
+
+Renders the chat history in the `Traveller:` / `Guide:` format used by
+`dialogue_pairs` during dataset construction.
 
 ```python
 TASKS = {
     "Classify": lambda p, q, s: classify(p),
     "Ask a question": lambda p, q, s: answer(q, p),
-    …
+    "Traveller digest": lambda p, q, s: digest(p),
+    "Summarise": lambda p, q, s: summarize(p, s),
 }
 ```
-A **dictionary** from the button label to a function. `lambda p, q, s:` is a
-one-line function taking passage, question and style. Every entry takes the same
-three inputs, so the page can call `TASKS[task](passage, question, style)` whatever the task.
 
-### 4.2 `app/model.py`
+Maps each interface label to a builder with a uniform signature (passage,
+question, style), so the interface can dispatch on the selected task.
+
+### 5.2 Model loading and generation (`model.py`)
 
 ```python
 os.environ.setdefault("KERAS_BACKEND", "jax")
 os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.90")
 ```
-Must run before Keras is imported. Keras can run on JAX, TensorFlow or PyTorch;
-we use **JAX**, as in training. The second line lets JAX use up to 90% of GPU
-memory. `setdefault` leaves the value alone if it is already set.
+
+Keras selects its backend at first import, so this is set before Keras loads.
+JAX matches the training configuration; the second variable lets JAX use up to
+90% of GPU memory.
 
 ```python
-SOT, EOT = "<start_of_turn>", "<end_of_turn>"
-BUCKETS = (768, 1024, 1536, 2048)
+def chat_template(prompt: str) -> str:
+    return f"{START_OF_TURN}user\n{prompt}{END_OF_TURN}\n{START_OF_TURN}model\n"
 ```
-Gemma's special markers for the start and end of a chat turn. `BUCKETS` are the
-allowed total lengths, explained under `generate` below.
+
+Gemma's chat format: a user turn containing the prompt, followed by an open model
+turn for Gemma to complete. Identical to the string used in training.
 
 ```python
-def chat_template(prompt):
-    return f"{SOT}user\n{prompt}{EOT}\n{SOT}model\n"
+def extract_reply(generated: str, prompt: str) -> str:
 ```
-Wraps the prompt the way Gemma expects a chat: a *user* turn containing the
-prompt, then an open *model* turn for Gemma to complete. Identical to training.
+
+KerasHub returns the prompt followed by the completion. This removes the prompt
+and truncates at the first end-of-turn or end-of-sequence marker.
 
 ```python
-def _strip(raw, prompt):
-    out = raw[len(prompt):] if raw.startswith(prompt) else raw.replace(prompt, "")
-    …
-    for tok in (EOT, "<eos>", "<pad>"):
-        i = out.find(tok)
-        if i >= 0:
-            out = out[:i].strip()
-```
-Keras returns the prompt **plus** the answer. This cuts off the prompt, then cuts
-everything after the first end marker, leaving only the answer.
-
-```python
-class Ijeoma:
+class IjeomaModel:
     def __init__(self, preset, adapter_path, lora_rank=8):
-        …
-        self.lock = threading.Lock()
-        self.models = {}
-        self.models["ijeoma"] = self._load(with_adapter=True)
+        ...
+        self._models = {"ijeoma": self._load(with_adapter=True)}
 ```
-Holds the loaded models in a dictionary. The fine-tuned model loads at start-up;
-the base model loads only when the Compare page first needs it. The lock stops
-two requests using the GPU at the same moment.
+
+Holds the loaded models. The fine-tuned model loads at start-up; the baseline
+loads on first use by the comparison page (`ensure_loaded`). A lock serialises
+access to the GPU.
 
 ```python
-    def _load(self, with_adapter):
-        m = kh.models.Gemma3CausalLM.from_preset(self.preset)
+model = keras_hub.models.Gemma3CausalLM.from_preset(self.preset)
+if with_adapter:
+    model.backbone.enable_lora(rank=self.lora_rank)
+    archive = np.load(self.adapter_path)
+    saved = {str(name): archive[f"w{i}"] for i, name in enumerate(archive["names"])}
 ```
-Downloads (first time only) and loads Gemma 3 1B. `preset` is
-`hf://google/gemma-3-1b-it`, its address on Hugging Face.
+
+Loads the base model, attaches empty rank-8 LoRA layers (initialised so the model
+is unchanged), and reads the adapter archive into a name-to-array map: the
+inverse of the checkpoint callback in §3.3.
 
 ```python
-        if with_adapter:
-            m.backbone.enable_lora(rank=self.rank)
+    for weight in model.weights:
+        key = getattr(weight, "path", None) or weight.name
+        if key in saved:
+            weight.assign(saved[key])
+            loaded += 1
+    if loaded != len(saved):
+        raise RuntimeError(...)
 ```
-Adds empty LoRA layers to the model: small matrices alongside the attention
-layers. They start at zero, so the model still behaves like the base.
+
+Copies each trained matrix into the corresponding model weight, then verifies
+that all 104 were restored. A partial match indicates the wrong rank or base
+model, and the loader fails rather than serving a partially adapted model.
 
 ```python
-            z = np.load(self.adapter_path)
-            saved = {str(n): z[f"w{i}"] for i, n in enumerate(z["names"])}
+model.compile(sampler="greedy")
 ```
-Opens the 5 MB `.npz` adapter and builds a name → numbers dictionary, the
-reverse of what `SaveLoRA` wrote.
+
+Greedy decoding selects the most probable token at each step, making outputs
+deterministic and matching the evaluation setting.
 
 ```python
-            for w in m.weights:
-                key = getattr(w, "path", None) or w.name
-                if key in saved:
-                    w.assign(saved[key])
-                    hit += 1
-            if hit != len(saved):
-                raise RuntimeError(…)
+needed = n_prompt + max_new_tokens
+max_length = next((b for b in LENGTH_BUCKETS if b >= needed), LENGTH_BUCKETS[-1])
 ```
-Go through every weight in the model; where the name matches a saved LoRA
-weight, copy the trained numbers in. Then check that **all 104** were loaded. A
-mismatch means the wrong rank or base model, and silently running a half-loaded
-model would be worse than stopping.
+
+KerasHub compiles generation separately for each distinct `max_length`. Rounding
+up to one of four fixed lengths (768, 1024, 1536, 2048) bounds the number of
+compilations.
 
 ```python
-        m.compile(sampler="greedy")
+with self._lock:
+    generated = model.generate(text, max_length=max_length, stop_token_ids=model.stop_token_ids_)
+return extract_reply(generated, text), elapsed
 ```
-**Greedy** decoding always picks the most likely next word, so the same question
-gives the same answer every time. This is the setting used in evaluation.
+
+Generation stops at Gemma's end-of-turn token, and requests are processed one
+at a time.
+
+`StubModel` implements the same interface with canned outputs, so the interface
+can be tested without a GPU (`--stub`).
+
+### 5.3 Pages and event handling (`ijeoma_app.py`)
 
 ```python
-        stops = [int(tok.token_to_id(t)) for t in (EOT, "<eos>") …]
-        m._ijeoma_stops = stops or "auto"
+def run_task(task, passage, question, style, variant="ijeoma"):
+    if task == "Ask a question" and not (question or "").strip():
+        return "Enter a question first.", "", ""
+    prompt = prompts.TASKS[task](passage, question or "", style)
+    output, seconds = model.generate(prompt, variant=variant)
+    ...
+    return output, prompt, f"{seconds:.1f} s"
 ```
-Looks up the number IDs of the end markers so generation stops as soon as Gemma
-finishes its turn, instead of running on to the length limit.
+
+The shared handler for both the Workbench and Compare pages: validate input,
+build the prompt, generate, and return the output, the prompt (shown in the
+interface for transparency) and the generation time.
 
 ```python
-    def generate(self, prompt, which="ijeoma", max_new_tokens=320):
-        self.ensure(which)
-        m = self.models[which]
-        text = chat_template(prompt)
-        n = len(m.preprocessor.tokenizer.tokenize(text))
+picker.change(sample_passage, picker, passage)
 ```
-Load the requested model if needed, wrap the prompt, and count its **tokens**
-(word pieces; roughly ¾ of a word each).
+
+A Gradio event binding: when the destination selection changes, the matching
+passage is loaded into the text box.
 
 ```python
-        need = n + max_new_tokens
-        max_length = next((b for b in BUCKETS if b >= need), BUCKETS[-1])
+with app.route("Chat", "/chat"):
 ```
-Room needed = prompt + up to 320 new tokens, rounded up to the next bucket.
-Keras compiles generation separately for each distinct length, which takes
-time. Using four fixed sizes means at most four compiles, not one per question.
+
+`Blocks.route` adds a separate page under its own URL; Gradio renders the
+navigation menu between pages.
 
 ```python
-        with self.lock:
-            t0 = time.time()
-            raw = m.generate(text, max_length=max_length, stop_token_ids=m._ijeoma_stops)
-            dt = time.time() - t0
-        return _strip(raw, text), dt
+def respond(text, history, passage, withhold):
+    exchanges, pending = [], None
+    for turn in history:
+        if turn["role"] == "user":
+            pending = turn["content"]
+        elif pending is not None:
+            exchanges.append((pending, turn["content"]))
+            pending = None
+    prompt = prompts.dialogue(text, "" if withhold else passage, exchanges)
 ```
-Generate, one request at a time, timing it. Return the cleaned answer and the
-seconds taken.
+
+The chat component stores history as a list of `user` and `assistant` messages.
+This loop pairs each question with its reply to rebuild the
+`(traveller, guide)` history, then builds the dialogue prompt, with an empty
+passage if the user has chosen to withhold it. Changing the destination or
+starting a new conversation clears the history, so a dialogue never mixes two
+passages.
 
 ```python
-class FakeIjeoma:
+def compare(task, passage, question, style):
+    base, _, base_s = run_task(task, passage, question, style, variant="base")
+    tuned, _, tuned_s = run_task(task, passage, question, style, variant="ijeoma")
 ```
-A stand-in with the same functions but no model, returning canned text. Used
-with `--fake` to test the pages on a machine without a GPU.
 
-### 4.3 `app/ijeoma_app.py`
-
-```python
-SAMPLES = json.load(open(os.path.join(HERE, "sample_passages.json"), encoding="utf-8"))
-CHOICES = [f"{s['name']} ({s['country']})" for s in SAMPLES]
-BY_LABEL = dict(zip(CHOICES, SAMPLES))
-```
-Loads the 40 sample destinations (all from the test set, never trained on),
-makes dropdown labels like "Great Mosque of Porto-Novo (Benin)", and maps each
-label back to its passage.
+The comparison page runs the identical prompt through both models.
 
 ```python
-def build(engine):
+build_app(model).queue(default_concurrency_limit=1).launch(
+    server_name=args.host, server_port=args.port, share=args.share
+)
 ```
-Builds all three pages. `engine` is either the real `Ijeoma` or `FakeIjeoma`;
-the pages don't need to know which.
 
-```python
-    def run(task, passage, question, style, which="ijeoma"):
-        if task == "Ask a question" and not (question or "").strip():
-            return "Type a question first.", "", ""
-        prompt = P.TASKS[task](passage, question or "", style)
-        out, dt = engine.generate(prompt, which=which)
-        if task == "Classify":
-            out = f"```json\n{out}\n```"
-        return out, prompt, f"{dt:.1f}s"
-```
-What the Run button does: refuse an empty question, build the prompt, generate,
-format classify output as JSON, and return the answer, the prompt (shown under
-"Exact prompt sent") and the time.
-
-```python
-    def passage_inputs():
-        pick = gr.Dropdown(CHOICES, value=CHOICES[0], label="Destination (held-out sample)")
-        passage = gr.Textbox(passage_for(CHOICES[0]), lines=9, …)
-        pick.change(passage_for, pick, passage)
-        return pick, passage
-```
-Creates the destination dropdown and passage box. `pick.change(...)` is an
-**event**: when the dropdown changes, call `passage_for` with its value and put
-the result in the passage box. Reused on all three pages.
-
-```python
-    def task_inputs():
-        task = gr.Radio(list(P.TASKS), value="Ask a question", label="Task")
-        …
-        def toggle(t):
-            return gr.update(visible=t == "Ask a question"), gr.update(visible=t == "Summarise")
-        task.change(toggle, task, [question, style])
-```
-The task buttons. Choosing a task shows the question box only for "Ask a
-question" and the style dropdown only for "Summarise".
-
-```python
-    with gr.Blocks(title="Ijeoma AI", theme=gr.themes.Soft()) as demo:
-        gr.Markdown(...)
-        with gr.Row():
-            with gr.Column(): …inputs…
-            with gr.Column(): …outputs…
-        go.click(run, [task, passage, question, style], [out, sent, took])
-```
-**Page 1, Workbench.** `gr.Blocks` is the app; `Row` and `Column` lay out two
-side-by-side columns. `go.click(run, inputs, outputs)` wires the button: read
-the inputs, call `run`, put its three results into the three outputs.
-
-```python
-    with demo.route("Chat", "/chat"):
-```
-**Page 2, Chat**, served at `/chat`. `demo.route` creates a separate page in the
-same app; Gradio adds the navigation menu at the top.
-
-```python
-        def respond(message, history, passage, hide):
-            pairs, q = [], None
-            for turn in history:
-                if turn["role"] == "user":
-                    q = turn["content"]
-                elif q is not None:
-                    pairs.append((q, turn["content"]))
-                    q = None
-```
-The chat box stores history as a list of messages, each `user` or `assistant`.
-This loop pairs each user message with the reply after it, giving
-`[(question, answer), …]`.
-
-```python
-            prompt = P.dialogue(message, "" if hide else passage, pairs)
-            reply, _ = engine.generate(prompt)
-            history = history + [{"role": "user", "content": message},
-                                 {"role": "assistant", "content": reply}]
-            return "", history
-```
-Build the conversation prompt; if "Hide the passage" is ticked, send no passage.
-Generate, add both messages to the history, and return an empty string to clear
-the typing box.
-
-```python
-        msg.submit(respond, [msg, chat, passage_c, no_src], [msg, chat])
-        clear.click(lambda: [], None, chat)
-        pick_c.change(lambda: [], None, chat)
-```
-Pressing Enter sends a message. "New conversation" empties the chat, and so does
-choosing a different destination, so one conversation never mixes two places.
-
-```python
-    with demo.route("Compare", "/compare"):
-        …
-        def compare(task, passage, question, style):
-            b, _, tb = run(task, passage, question, style, which="base")
-            i, _, ti = run(task, passage, question, style, which="ijeoma")
-            return b, tb, i, ti
-```
-**Page 3, Compare.** Runs the same `run` twice, once with the base model and once
-with Ijeoma AI, and shows the results side by side. The `_` discards the prompt,
-which is the same for both.
-
-```python
-def main():
-    ap = argparse.ArgumentParser(…)
-    ap.add_argument("--adapter", default=DEFAULT_ADAPTER)
-    ap.add_argument("--host", default="0.0.0.0", …)
-    ap.add_argument("--share", action="store_true", …)
-    ap.add_argument("--fake", action="store_true", …)
-    a = ap.parse_args()
-```
-Reads command-line options. `0.0.0.0` means accept connections from other
-computers on the network, not just this one. `store_true` options are on/off switches.
-
-```python
-    if a.fake:
-        from model import FakeIjeoma as Engine
-    else:
-        if not os.path.exists(a.adapter):
-            sys.exit(f"adapter not found: {a.adapter}")
-        from model import Ijeoma as Engine
-    engine = Engine(a.preset, a.adapter)
-```
-Choose the fake or real engine; stop early if the adapter file is missing.
-Creating the real engine loads Gemma, which is the slow start-up step.
-
-```python
-    build(engine).queue(default_concurrency_limit=1).launch(
-        server_name=a.host, server_port=a.port, share=a.share)
-```
-Build the pages and start the web server. `queue(… 1)` handles one request at a
-time: one GPU can't run two generations at once, so others wait in line.
-`share=True` asks Gradio for a public `gradio.live` link.
+Requests are queued and processed one at a time, since a single GPU cannot
+serve concurrent generations efficiently. `share=True` requests a public
+`gradio.live` URL.
 
 ---
 
-## Glossary
+## 6. Glossary
 
-| Term | Meaning |
+| Term | Definition |
 |---|---|
-| **Passage** | The source text about one place, from Wikipedia, Wikivoyage or OpenStreetMap |
-| **Example / pair** | One training item: an input (prompt) and the output we want |
-| **Prompt** | The text given to the model: instruction + question + passage |
-| **Teacher model** | A large model (here OpenAI) used to write training examples |
-| **Template** | A fixed pattern filled in by code to make examples |
-| **JSONL** | A file with one JSON record per line; our data format |
-| **Gemma 3 1B** | Google's open model with 1 billion parameters; our base model |
-| **Parameters / weights** | The numbers inside a model that training adjusts |
-| **LoRA** | Training small add-on matrices instead of the whole model; we train 1.3M of 1B numbers (0.13%) |
-| **Rank (8)** | The size of the LoRA matrices; bigger means more capacity and more memory |
-| **Adapter** | The saved LoRA weights (`.npz`, 5 MB); added to base Gemma to get Ijeoma AI |
-| **Epoch** | One pass through all training examples; we trained one |
-| **Loss** | How wrong the model's predictions are during training; lower is better |
-| **Checkpoint** | A saved copy of the weights partway through training |
-| **Token** | A word piece the model reads and writes; about ¾ of a word |
-| **Greedy decoding** | Always pick the most likely next token; same input → same output |
-| **Keras / JAX** | The libraries the model runs on (Keras on top of JAX) |
-| **Colab / T4** | Google's free notebook service and the GPU it provides |
-| **Callback** | Code Keras runs automatically at points during training |
-| **Regex** | A text pattern used to find phrases, such as refusals |
-| **Grounded** | Every name and number in the answer appears in the passage |
-| **Refusal recall** | Share of should-decline questions the model actually declined |
-| **False refusal** | Share of answerable questions the model wrongly declined |
-| **ROUGE-1 / ROUGE-L** | Word overlap with the reference answer (single words / longest matching sequence) |
-| **BERTScore** | Meaning similarity with the reference, measured by another model |
-| **Precision / recall / F1** | Of what was predicted, how much was right / of what was right, how much was found / their balance |
-| **Macro average** | Average over classes, each class counted equally |
-| **LLM judge** | Another model grading answers against a rubric |
-| **Claims supported rate** | Supported claims ÷ all claims; the proposal's success measure (target 90%) |
-| **Invention rate** | How often the model makes up an answer when it has no passage |
-| **Held-out / test set** | Examples from passages never used in training |
-| **Gradio** | A Python library for building simple web pages around a model |
-| **Route** | A separate page in the Gradio app, at its own URL (`/chat`, `/compare`) |
+| Adapter | The saved LoRA weights (`.npz`, 5 MB); combined with base Gemma to give Ijeoma AI |
+| Atomic claim | A single factual statement, such as one date or one location |
+| BERTScore | Semantic similarity between output and reference, computed from contextual embeddings |
+| Callback | Code that Keras invokes automatically at defined points during training |
+| Checkpoint | Weights saved part-way through training |
+| Claims supported rate | Supported claims ÷ all claims; the primary metric (target 0.90) |
+| Epoch | One pass over the full training set |
+| Example | One training item: an input prompt and its target output |
+| False refusal rate | Share of answerable questions the model declined |
+| Greedy decoding | Choosing the most probable token at every step; deterministic |
+| Grounded | Every name and number in an output appears in the source passage |
+| Held-out set | Examples from passages never used in training |
+| Invention rate | Share of no-passage prompts for which the model fabricated an answer |
+| JAX / Keras / KerasHub | The numerical backend, deep-learning library and model library used |
+| JSONL | One JSON record per line; the dataset file format |
+| LLM judge | A language model that scores outputs against a rubric |
+| LoRA | Low-rank adaptation: training small added matrices instead of the full model |
+| Macro average | A metric averaged over classes with equal weight per class |
+| Passage | The source text describing one destination |
+| Precision / recall / F1 | Correct share of predictions / found share of correct items / their harmonic mean |
+| Rank | The inner dimension of the LoRA matrices (8 here); governs adapter capacity |
+| Refusal recall | Share of unanswerable questions the model correctly declined |
+| Regular expression | A text pattern used for matching, such as refusal phrasing |
+| ROUGE-1 / ROUGE-L | Word overlap with the reference: single words / longest common subsequence |
+| Route | A separate page of the Gradio application with its own URL |
+| Teacher model | A larger model used to generate training examples |
+| Token | The unit of text the model reads and writes, roughly three-quarters of a word |

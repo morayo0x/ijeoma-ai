@@ -5,3 +5,6 @@ upload_to_drive/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# run logs
+*.log

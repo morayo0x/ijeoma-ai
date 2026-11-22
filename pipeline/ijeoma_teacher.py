@@ -36,8 +36,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ijeoma_build import validate            # noqa: E402  (same checks as Stage 3)
-from ijeoma_pairs import country_quota_sample, qa_prompt, TASK_TAGS  # noqa: E402
+from ijeoma_build import validate
+from ijeoma_pairs import TASK_TAGS, country_quota_sample, qa_prompt
 
 DEFAULT_MODEL = "gemini-2.5-flash"
 DEFAULT_OPENAI_MODEL = "gpt-5.4-mini"
@@ -129,9 +129,11 @@ DIGEST_INSTRUCTIONS = [
 # Model client
 # --------------------------------------------------------------------------
 
+
 def get_api_key(names=("GOOGLE_API_KEY", "GEMINI_API_KEY")) -> str:
-    try:                                        # Colab secrets
-        from google.colab import userdata       # type: ignore
+    try:  # Colab secrets
+        from google.colab import userdata  # type: ignore
+
         for k in names:
             try:
                 v = userdata.get(k)
@@ -167,23 +169,31 @@ class OpenAITeacher:
 
     def generate(self, prompt: str, retries: int = 4) -> str | None:
         import urllib.request
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-        }).encode()
+
+        body = json.dumps(
+            {
+                "model": self.model,
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+            }
+        ).encode()
         delay = 2.0
         for attempt in range(retries):
             try:
-                req = urllib.request.Request(self.URL, data=body, headers={
-                    "Authorization": f"Bearer {self.key}",
-                    "Content-Type": "application/json"})
+                req = urllib.request.Request(
+                    self.URL,
+                    data=body,
+                    headers={
+                        "Authorization": f"Bearer {self.key}",
+                        "Content-Type": "application/json",
+                    },
+                )
                 with urllib.request.urlopen(req, timeout=180) as r:
                     data = json.load(r)
                 with self.lock:
                     self.calls += 1
                 return (data["choices"][0]["message"]["content"] or "").strip()
-            except Exception as exc:            # rate limit, transient 5xx
+            except Exception as exc:  # rate limit, transient 5xx
                 if attempt == retries - 1:
                     print(f"  giving up after {retries}: {exc}", file=sys.stderr)
                     return None
@@ -197,7 +207,7 @@ class Teacher:
         try:
             from google import genai
         except ImportError:
-            raise SystemExit("pip install google-genai")
+            raise SystemExit("pip install google-genai") from None
         self.client = genai.Client(api_key=get_api_key())
         self.model = model
         self.lock = threading.Lock()
@@ -207,13 +217,11 @@ class Teacher:
         delay = 2.0
         for attempt in range(retries):
             try:
-                r = self.client.models.generate_content(
-                    model=self.model, contents=prompt
-                )
+                r = self.client.models.generate_content(model=self.model, contents=prompt)
                 with self.lock:
                     self.calls += 1
                 return (r.text or "").strip()
-            except Exception as exc:            # rate limit, transient 5xx
+            except Exception as exc:  # rate limit, transient 5xx
                 if attempt == retries - 1:
                     print(f"  giving up after {retries}: {exc}", file=sys.stderr)
                     return None
@@ -244,6 +252,7 @@ def parse_json(text: str | None):
 # Cache
 # --------------------------------------------------------------------------
 
+
 class Cache:
     """Append-only JSONL cache keyed by (passage_id, task)."""
 
@@ -261,7 +270,8 @@ class Cache:
                         continue
                     self.rows.append(r)
                     self.seen.add((r["passage_id"], r["task"]))
-        self.fh = open(path, "a", encoding="utf-8")
+        # Kept open for the whole run: every result is flushed as it arrives.
+        self.fh = open(path, "a", encoding="utf-8")  # noqa: SIM115
 
     def has(self, pid: str, task: str) -> bool:
         return (pid, task) in self.seen
@@ -279,8 +289,10 @@ class Cache:
 # Pair construction from raw teacher output
 # --------------------------------------------------------------------------
 
+
 def stable_choice(seq, *parts):
     import hashlib
+
     h = hashlib.sha1("|".join(map(str, parts)).encode()).hexdigest()
     return seq[int(h[:8], 16) % len(seq)]
 
@@ -293,8 +305,11 @@ def digest_pair(row, raw) -> dict | None:
     return {
         "input": f"{TASK_TAGS['digest']} {instr}\n\nPASSAGE:\n{row['passage']}",
         "output": str(obj["digest"]).strip(),
-        "task": "digest", "subtype": "teacher_digest",
-        "passage_id": row["passage_id"], "country": row["country"], "name": row["name"],
+        "task": "digest",
+        "subtype": "teacher_digest",
+        "passage_id": row["passage_id"],
+        "country": row["country"],
+        "name": row["name"],
     }
 
 
@@ -303,19 +318,22 @@ def qa_pairs(row, raw) -> list[dict]:
     if not obj or obj.get("skip"):
         return []
     out = []
-    for i, p in enumerate(obj.get("pairs", []) or []):
+    for p in obj.get("pairs", []) or []:
         q, a = str(p.get("question", "")).strip(), str(p.get("answer", "")).strip()
         if not q or not a:
             continue
         answerable = bool(p.get("answerable", True))
-        out.append({
-            "input": qa_prompt(q, row["passage"]),
-            "output": a,
-            "task": "answer" if answerable else "refuse",
-            "subtype": "teacher_qa" if answerable else "teacher_abstain",
-            "passage_id": row["passage_id"], "country": row["country"],
-            "name": row["name"],
-        })
+        out.append(
+            {
+                "input": qa_prompt(q, row["passage"]),
+                "output": a,
+                "task": "answer" if answerable else "refuse",
+                "subtype": "teacher_qa" if answerable else "teacher_abstain",
+                "passage_id": row["passage_id"],
+                "country": row["country"],
+                "name": row["name"],
+            }
+        )
     return out
 
 
@@ -328,23 +346,31 @@ def dialogue_pairs(row, raw) -> list[dict]:
     obj = parse_json(raw)
     if not obj or obj.get("skip"):
         return []
-    turns = [t for t in (obj.get("turns") or [])
-             if str(t.get("traveller", "")).strip() and str(t.get("guide", "")).strip()]
+    turns = [
+        t
+        for t in (obj.get("turns") or [])
+        if str(t.get("traveller", "")).strip() and str(t.get("guide", "")).strip()
+    ]
     out, history = [], []
     for i, t in enumerate(turns):
         q, a = str(t["traveller"]).strip(), str(t["guide"]).strip()
         answerable = bool(t.get("answerable", True))
         convo = "\n".join(history) if history else "(start of conversation)"
-        out.append({
-            "input": (f"{TASK_TAGS['answer']} {DIALOGUE_INSTRUCTION}\n\n"
-                      f"CONVERSATION SO FAR:\n{convo}\n\n"
-                      f"QUESTION: {q}\n\nPASSAGE:\n{row['passage']}"),
-            "output": a,
-            "task": "answer" if answerable else "refuse",
-            "subtype": f"dialogue_turn{i + 1}" if answerable else "dialogue_abstain",
-            "passage_id": row["passage_id"], "country": row["country"],
-            "name": row["name"],
-        })
+        out.append(
+            {
+                "input": (
+                    f"{TASK_TAGS['answer']} {DIALOGUE_INSTRUCTION}\n\n"
+                    f"CONVERSATION SO FAR:\n{convo}\n\n"
+                    f"QUESTION: {q}\n\nPASSAGE:\n{row['passage']}"
+                ),
+                "output": a,
+                "task": "answer" if answerable else "refuse",
+                "subtype": f"dialogue_turn{i + 1}" if answerable else "dialogue_abstain",
+                "passage_id": row["passage_id"],
+                "country": row["country"],
+                "name": row["name"],
+            }
+        )
         history += [f"Traveller: {q}", f"Guide: {a}"]
     return out
 
@@ -355,6 +381,7 @@ PROMPTS = {"digest": DIGEST_PROMPT, "qa": QA_PROMPT, "dialogue": DIALOGUE_PROMPT
 # --------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------
+
 
 def run(args):
     df = pd.read_json(args.passages, lines=True)
@@ -377,20 +404,24 @@ def run(args):
         qa_rows = qa_rows.head(args.limit)
         dialogue_rows = dialogue_rows.head(args.limit)
 
-    jobs = [("digest", r) for _, r in digest_rows.iterrows()] + \
-           [("qa", r) for _, r in qa_rows.iterrows()] + \
-           [("dialogue", r) for _, r in dialogue_rows.iterrows()]
+    jobs = (
+        [("digest", r) for _, r in digest_rows.iterrows()]
+        + [("qa", r) for _, r in qa_rows.iterrows()]
+        + [("dialogue", r) for _, r in dialogue_rows.iterrows()]
+    )
     jobs = [(t, r) for t, r in jobs if not cache.has(r["passage_id"], t)]
-    print(f"{len(jobs)} teacher calls to make "
-          f"({len(cache.seen)} already cached)")
+    print(f"{len(jobs)} teacher calls to make ({len(cache.seen)} already cached)")
 
     if args.dry_run:
         if jobs:
             t, r = jobs[0]
             tmpl = PROMPTS[t]
             print("\n--- example prompt ---\n")
-            print(tmpl.format(rules=RULES, name=r["name"],
-                              country=r["country"], passage=r["passage"][:600]))
+            print(
+                tmpl.format(
+                    rules=RULES, name=r["name"], country=r["country"], passage=r["passage"][:600]
+                )
+            )
         return {"dry_run": True, "pending_calls": len(jobs)}
 
     teacher = (OpenAITeacher if args.provider == "openai" else Teacher)(args.model)
@@ -399,8 +430,9 @@ def run(args):
     def work(job):
         task, row = job
         tmpl = PROMPTS[task]
-        prompt = tmpl.format(rules=RULES, name=row["name"],
-                             country=row["country"], passage=row["passage"])
+        prompt = tmpl.format(
+            rules=RULES, name=row["name"], country=row["country"], passage=row["passage"]
+        )
         raw = teacher.generate(prompt)
         cache.put(row["passage_id"], task, raw)
         done[0] += 1
@@ -466,8 +498,11 @@ if __name__ == "__main__":
     ap.add_argument("--passages", default="out/passages.jsonl")
     ap.add_argument("--out", default="out")
     ap.add_argument("--provider", choices=["gemini", "openai"], default="gemini")
-    ap.add_argument("--model", default=None,
-                    help=f"default: {DEFAULT_MODEL} (gemini) / {DEFAULT_OPENAI_MODEL} (openai)")
+    ap.add_argument(
+        "--model",
+        default=None,
+        help=f"default: {DEFAULT_MODEL} (gemini) / {DEFAULT_OPENAI_MODEL} (openai)",
+    )
     ap.add_argument("--n-digest", type=int, default=1000)
     ap.add_argument("--n-qa", type=int, default=700)
     ap.add_argument("--n-dialogue", type=int, default=400)

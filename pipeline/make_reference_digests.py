@@ -15,6 +15,7 @@ teacher's zero-shot output drifts.
 
 Run:  python3 -I make_reference_digests.py
 """
+
 import json
 import os
 import sys
@@ -83,12 +84,18 @@ def main(passages="out/passages.jsonl", out="out"):
                 missing.append(name)
                 continue
             row = hit.iloc[0]
-            fh.write(json.dumps({
-                "passage_id": row["passage_id"],
-                "task": "digest",
-                "raw": json.dumps({"digest": digest}, ensure_ascii=False),
-                "_source": "hand-written reference",
-            }, ensure_ascii=False) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "passage_id": row["passage_id"],
+                        "task": "digest",
+                        "raw": json.dumps({"digest": digest}, ensure_ascii=False),
+                        "_source": "hand-written reference",
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
             written += 1
     print(f"wrote {written} reference digests to {path}")
     if missing:

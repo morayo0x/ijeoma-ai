@@ -43,13 +43,93 @@ import pandas as pd
 
 TAG = "[SUMMARIZE]"
 
-STOPWORDS = set("""
-a an the and or but if while of to in on at by for with from as is are was
-were be been being it its this that these those he she they them his her
-their there here which who whom whose what when where why how not no nor so
-than then too very can will just also into over under more most other some
-such only own same s t don now d ll m o re ve y
-""".split())
+STOPWORDS = set(
+    [
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "if",
+        "while",
+        "of",
+        "to",
+        "in",
+        "on",
+        "at",
+        "by",
+        "for",
+        "with",
+        "from",
+        "as",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "it",
+        "its",
+        "this",
+        "that",
+        "these",
+        "those",
+        "he",
+        "she",
+        "they",
+        "them",
+        "his",
+        "her",
+        "their",
+        "there",
+        "here",
+        "which",
+        "who",
+        "whom",
+        "whose",
+        "what",
+        "when",
+        "where",
+        "why",
+        "how",
+        "not",
+        "no",
+        "nor",
+        "so",
+        "than",
+        "then",
+        "too",
+        "very",
+        "can",
+        "will",
+        "just",
+        "also",
+        "into",
+        "over",
+        "under",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "only",
+        "own",
+        "same",
+        "s",
+        "t",
+        "don",
+        "now",
+        "d",
+        "ll",
+        "m",
+        "o",
+        "re",
+        "ve",
+        "y",
+    ]
+)
 
 RE_SENT_SPLIT = re.compile(r"(?<=[.!?])\s+")
 RE_WORD = re.compile(r"[A-Za-zÀ-ɏ'’\-]+")
@@ -58,14 +138,19 @@ RE_PROPER = re.compile(r"\b[A-Z][a-zÀ-ɏ'’\-]{2,}\b")
 RE_DEFINITION = re.compile(
     r"\b(?:is|was|are|were)\s+(?:a|an|the|one of)\b"
     r"|\b(?:is|was)\s+(?:located|situated|found)\b",
-    re.I)
+    re.I,
+)
 RE_NOT_A_DEFINITION = re.compile(
     r"(may refer to|is also (the|an?) |abbreviation for|disambiguation|"
-    r"for other uses|not to be confused|see also)", re.I)
+    r"for other uses|not to be confused|see also)",
+    re.I,
+)
 RE_NOTABLE = re.compile(
     r"\b(unesco|world heritage|oldest|largest|biggest|first|only|best known|"
     r"known for|famous for|renowned|notable|significant|designated|inscribed|"
-    r"declared|protected|rare|endangered|unique)\b", re.I)
+    r"declared|protected|rare|endangered|unique)\b",
+    re.I,
+)
 # A sentence that is mostly a comma-separated roll-call of names summarises
 # nothing; it just moves a list into the target.
 RE_LISTY = re.compile(r"(,[^,]{1,24}){4,}")
@@ -76,18 +161,65 @@ RE_LISTY = re.compile(r"(,[^,]{1,24}){4,}")
 # itself to whatever came before it and quietly asserts something false.
 RE_DANGLING = re.compile(
     r"^\s*(?:it|he|she|they|this|that|these|those|its|his|her|their|such|"
-    r"there|here|both|neither|the former|the latter|one of them)\b", re.I)
+    r"there|here|both|neither|the former|the latter|one of them)\b",
+    re.I,
+)
 
 # Words in a place name that are too generic to identify it on their own,
 # but which do make a fine referent inside its own passage ("the fort").
 GENERIC_PLACE_WORDS = {
-    "the", "of", "and", "national", "park", "reserve", "sanctuary", "museum",
-    "gallery", "fort", "castle", "palace", "beach", "falls", "waterfall",
-    "waterfalls", "river", "island", "islands", "mount", "mountain", "lake",
-    "city", "town", "village", "sacred", "grove", "centre", "center", "state",
-    "region", "district", "area", "monument", "memorial", "site", "shrine",
-    "mosque", "church", "cathedral", "market", "square", "garden", "zoo",
-    "forest", "hills", "rock", "cave", "valley", "bay", "delta", "gate",
+    "the",
+    "of",
+    "and",
+    "national",
+    "park",
+    "reserve",
+    "sanctuary",
+    "museum",
+    "gallery",
+    "fort",
+    "castle",
+    "palace",
+    "beach",
+    "falls",
+    "waterfall",
+    "waterfalls",
+    "river",
+    "island",
+    "islands",
+    "mount",
+    "mountain",
+    "lake",
+    "city",
+    "town",
+    "village",
+    "sacred",
+    "grove",
+    "centre",
+    "center",
+    "state",
+    "region",
+    "district",
+    "area",
+    "monument",
+    "memorial",
+    "site",
+    "shrine",
+    "mosque",
+    "church",
+    "cathedral",
+    "market",
+    "square",
+    "garden",
+    "zoo",
+    "forest",
+    "hills",
+    "rock",
+    "cave",
+    "valley",
+    "bay",
+    "delta",
+    "gate",
 }
 
 
@@ -110,9 +242,7 @@ def is_about_subject(sentence: str, name: str) -> bool:
     low = sentence.lower()
     if any(t in low for t in distinctive):
         return True
-    if generic and any(re.search(rf"\b(?:the|this)\s+{t}\b", low) for t in generic):
-        return True
-    return False
+    return bool(generic) and any(re.search(rf"\b(?:the|this)\s+{t}\b", low) for t in generic)
 
 
 def stable_choice(seq, *parts):
@@ -130,8 +260,9 @@ def split_sentences(text: str) -> list[str]:
     raw = [s.strip() for s in RE_SENT_SPLIT.split(text.strip()) if s.strip()]
     out: list[str] = []
     for s in raw:
-        if out and (out[-1].count("(") > out[-1].count(")")
-                    or out[-1].count("“") > out[-1].count("”")):
+        if out and (
+            out[-1].count("(") > out[-1].count(")") or out[-1].count("“") > out[-1].count("”")
+        ):
             out[-1] = f"{out[-1]} {s}"
         else:
             out.append(s)
@@ -140,13 +271,13 @@ def split_sentences(text: str) -> list[str]:
 
 
 def content_words(s: str) -> list[str]:
-    return [w.lower() for w in RE_WORD.findall(s)
-            if w.lower() not in STOPWORDS and len(w) > 2]
+    return [w.lower() for w in RE_WORD.findall(s) if w.lower() not in STOPWORDS and len(w) > 2]
 
 
 # --------------------------------------------------------------------------
 # Scoring
 # --------------------------------------------------------------------------
+
 
 def score_sentences(sents: list[str], name: str) -> list[float]:
     """Score each sentence for how well it would represent the passage."""
@@ -158,7 +289,7 @@ def score_sentences(sents: list[str], name: str) -> list[float]:
     key = str(name).strip().lower()
 
     scores = []
-    for i, (s, t) in enumerate(zip(sents, toks)):
+    for i, (s, t) in enumerate(zip(sents, toks, strict=True)):
         words = len(s.split())
         if not t:
             scores.append(-10.0)
@@ -168,8 +299,7 @@ def score_sentences(sents: list[str], name: str) -> list[float]:
         # the rest of the passage. Sentences sharing the passage's dominant
         # vocabulary are about the passage's actual subject.
         central = sum(
-            (df[w] - 1) / n_docs * math.log(1 + n_docs / (1 + df[w]))
-            for w in set(t)
+            (df[w] - 1) / n_docs * math.log(1 + n_docs / (1 + df[w])) for w in set(t)
         ) / math.sqrt(len(set(t)))
 
         # Position: early sentences matter, with a gentle decay rather than a
@@ -182,8 +312,7 @@ def score_sentences(sents: list[str], name: str) -> list[float]:
             if key and key in s.lower():
                 defines = 1.6
 
-        density = min(len(RE_PROPER.findall(s)), 4) * 0.12 \
-            + min(len(RE_NUM.findall(s)), 3) * 0.10
+        density = min(len(RE_PROPER.findall(s)), 4) * 0.12 + min(len(RE_NUM.findall(s)), 3) * 0.10
         notable = 0.45 if RE_NOTABLE.search(s) else 0.0
 
         penalty = 0.0
@@ -198,8 +327,9 @@ def score_sentences(sents: list[str], name: str) -> list[float]:
         if s.lstrip().startswith(('"', "'", "“")):
             penalty += 0.8
 
-        scores.append(1.35 * central + 1.25 * position + 1.15 * defines
-                      + density + notable - penalty)
+        scores.append(
+            1.35 * central + 1.25 * position + 1.15 * defines + density + notable - penalty
+        )
     return scores
 
 
@@ -219,14 +349,16 @@ def pick_sentences(sents, scores, k, name, max_words):
     # it contains. Seed with the best definitional sentence.
     for i in order:
         s = sents[i]
-        if RE_DEFINITION.search(s) and not RE_NOT_A_DEFINITION.search(s) \
-                and (not key or key in s.lower()):
+        if (
+            RE_DEFINITION.search(s)
+            and not RE_NOT_A_DEFINITION.search(s)
+            and (not key or key in s.lower())
+        ):
             chosen.append(i)
             break
     if not chosen:
         for i in order:
-            if RE_DEFINITION.search(sents[i]) \
-                    and not RE_NOT_A_DEFINITION.search(sents[i]):
+            if RE_DEFINITION.search(sents[i]) and not RE_NOT_A_DEFINITION.search(sents[i]):
                 chosen.append(i)
                 break
     if not chosen:
@@ -245,18 +377,14 @@ def pick_sentences(sents, scores, k, name, max_words):
         # Guard against topic drift: a high-centrality sentence can still be
         # about a different place the passage merely mentions. Admit it only
         # if it names the subject, or continues a sentence already chosen.
-        if not is_about_subject(sents[i], name) \
-                and (i - 1) not in chosen and (i + 1) not in chosen:
+        if not is_about_subject(sents[i], name) and (i - 1) not in chosen and (i + 1) not in chosen:
             continue
         w = len(sents[i].split())
         if used_words + w > max_words:
             continue
         # Skip anything that mostly repeats a sentence already chosen.
         cand = set(content_words(sents[i]))
-        if cand and any(
-            len(cand & set(content_words(sents[j]))) / len(cand) > 0.6
-            for j in chosen
-        ):
+        if cand and any(len(cand & set(content_words(sents[j]))) / len(cand) > 0.6 for j in chosen):
             continue
         chosen.append(i)
         used_words += w
@@ -292,8 +420,7 @@ INSTR_SUMMARY = [
     "grounded entirely in what it says.",
     "Condense this passage into a brief summary a traveller could read at a "
     "glance. Stay within what the passage states.",
-    "Write a concise summary of the destination described below, no more than "
-    "three sentences.",
+    "Write a concise summary of the destination described below, no more than three sentences.",
 ]
 
 INSTR_ONE_LINE = [
@@ -306,8 +433,7 @@ INSTR_NOTABLE = [
     "What does the passage say makes this place significant? Answer in one or "
     "two sentences, using only the passage.",
     "Summarise why this destination is notable, according to the passage.",
-    "According to the passage, what is this place best known for? Keep it to "
-    "one or two sentences.",
+    "According to the passage, what is this place best known for? Keep it to one or two sentences.",
 ]
 
 
@@ -316,7 +442,7 @@ def build_pair(row, variant, text, instr_pool):
     return {
         "input": f"{TAG} {instr}\n\nPASSAGE:\n{row['passage']}",
         "output": text,
-        "task": "summarize",       # scored as generation, own length bounds
+        "task": "summarize",  # scored as generation, own length bounds
         "subtype": variant,
         "passage_id": row["passage_id"],
         "country": row["country"],
@@ -336,6 +462,7 @@ def cap_country_share(pairs, cap, seed):
     ends up with its summary in and its one-liner out.
     """
     import random as _r
+
     rng = _r.Random(seed)
 
     pairs_of: dict[str, list] = {}
@@ -386,8 +513,7 @@ def run(passages_path, out_dir, max_per_passage, seed):
         # ---- main summary, length scaled to the passage
         k = 2 if len(sents) < 8 else 3
         text, _ = summarise(row["passage"], row["name"], k, max_words=95)
-        if text and 25 <= len(text.split()) <= 100 \
-                and compression(text, row["passage"]) <= 0.55:
+        if text and 25 <= len(text.split()) <= 100 and compression(text, row["passage"]) <= 0.55:
             pairs.append(build_pair(row, "summary", text, INSTR_SUMMARY))
             made += 1
         else:
@@ -396,8 +522,7 @@ def run(passages_path, out_dir, max_per_passage, seed):
         # ---- second pair: alternate between the short variants so neither
         # starves. Without this, "notable" never gets a slot.
         prefer_notable = stable_choice([True, False], row["passage_id"], "variant")
-        plan = ["notable", "one_sentence"] if prefer_notable \
-            else ["one_sentence", "notable"]
+        plan = ["notable", "one_sentence"] if prefer_notable else ["one_sentence", "notable"]
 
         for variant in plan:
             if made >= max_per_passage:
@@ -405,10 +530,8 @@ def run(passages_path, out_dir, max_per_passage, seed):
 
             if variant == "one_sentence":
                 one, _ = summarise(row["passage"], row["name"], 1, max_words=45)
-                if one and 8 <= len(one.split()) <= 45 \
-                        and is_about_subject(one, row["name"]):
-                    pairs.append(build_pair(row, "one_sentence", one,
-                                            INSTR_ONE_LINE))
+                if one and 8 <= len(one.split()) <= 45 and is_about_subject(one, row["name"]):
+                    pairs.append(build_pair(row, "one_sentence", one, INSTR_ONE_LINE))
                     made += 1
                 else:
                     skipped["one_sentence_off_subject"] += 1
@@ -416,19 +539,20 @@ def run(passages_path, out_dir, max_per_passage, seed):
             else:
                 # Every sentence must be about this place and must stand on
                 # its own, because the whole output is one or two sentences.
-                cands = [s for s in sents
-                         if RE_NOTABLE.search(s)
-                         and 8 <= len(s.split()) <= 48
-                         and not RE_DANGLING.match(s)
-                         and is_about_subject(s, row["name"])]
+                cands = [
+                    s
+                    for s in sents
+                    if RE_NOTABLE.search(s)
+                    and 8 <= len(s.split()) <= 48
+                    and not RE_DANGLING.match(s)
+                    and is_about_subject(s, row["name"])
+                ]
                 if cands:
                     sc = score_sentences(cands, row["name"])
-                    best = sorted(range(len(cands)),
-                                  key=lambda i: sc[i], reverse=True)[:2]
+                    best = sorted(range(len(cands)), key=lambda i: sc[i], reverse=True)[:2]
                     txt = " ".join(cands[i] for i in sorted(best))
                     if 10 <= len(txt.split()) <= 85:
-                        pairs.append(build_pair(row, "notable", txt,
-                                                INSTR_NOTABLE))
+                        pairs.append(build_pair(row, "notable", txt, INSTR_NOTABLE))
                         made += 1
                 else:
                     skipped["no_notable_sentence"] += 1
@@ -443,8 +567,7 @@ def run(passages_path, out_dir, max_per_passage, seed):
             fh.write(json.dumps(p, ensure_ascii=False) + "\n")
 
     sdf = pd.DataFrame(pairs)
-    comp = [compression(p["output"],
-                        p["input"].split("PASSAGE:\n", 1)[-1]) for p in pairs]
+    comp = [compression(p["output"], p["input"].split("PASSAGE:\n", 1)[-1]) for p in pairs]
     report = {
         "passages_in": len(df),
         "pairs": len(pairs),
@@ -468,5 +591,6 @@ if __name__ == "__main__":
     ap.add_argument("--max-per-passage", type=int, default=2)
     ap.add_argument("--seed", type=int, default=20261115)
     a = ap.parse_args()
-    print(json.dumps(run(a.passages, a.out, a.max_per_passage, a.seed),
-                     indent=2, ensure_ascii=False))
+    print(
+        json.dumps(run(a.passages, a.out, a.max_per_passage, a.seed), indent=2, ensure_ascii=False)
+    )

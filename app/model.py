@@ -1,124 +1,148 @@
-"""Loads Gemma 3 1B and the Ijeoma AI LoRA adapter, and generates text.
+"""Model loading and text generation for the Ijeoma AI demo.
 
-Two model instances are kept: the fine-tuned one, loaded at start-up, and the
-untouched base model, loaded the first time the Compare page asks for it.
-At 1B parameters in float32 that is about 4 GB each, so both fit on a 16 GB GPU.
-Swapping adapter weights on one instance would save memory but forces a
-recompile of the generate function on every switch.
+Two model instances are kept: the fine-tuned model, loaded at start-up, and the
+unmodified base model, loaded on first use by the comparison page. In float32 a
+1B-parameter Gemma takes about 4 GB, so both fit on a 16 GB GPU. Swapping adapter
+weights on a single instance would save memory but forces the generate function
+to recompile on every switch.
 """
+
+from __future__ import annotations
+
 import os
 import threading
 import time
+from typing import Literal
 
 os.environ.setdefault("KERAS_BACKEND", "jax")
 os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.90")
 
-SOT, EOT = "<start_of_turn>", "<end_of_turn>"
-# Generation length buckets. keras-hub pads to max_length and compiles once per
-# distinct value, so rounding up to a few fixed sizes avoids recompiling on
-# every request.
-BUCKETS = (768, 1024, 1536, 2048)
+Variant = Literal["ijeoma", "base"]
+
+START_OF_TURN, END_OF_TURN = "<start_of_turn>", "<end_of_turn>"
+
+# keras-hub pads every generation to max_length and compiles once per distinct
+# value, so rounding requests up to a few fixed lengths bounds recompilation.
+LENGTH_BUCKETS = (768, 1024, 1536, 2048)
 
 
-def chat_template(prompt):
-    """Exactly the string the training notebook built at inference time."""
-    return f"{SOT}user\n{prompt}{EOT}\n{SOT}model\n"
+def chat_template(prompt: str) -> str:
+    """Wrap a prompt in Gemma's chat format, exactly as during training."""
+    return f"{START_OF_TURN}user\n{prompt}{END_OF_TURN}\n{START_OF_TURN}model\n"
 
 
-def _strip(raw, prompt):
-    out = raw[len(prompt):] if raw.startswith(prompt) else raw.replace(prompt, "")
-    out = out.strip()
-    for tok in (EOT, "<eos>", "<pad>"):
-        i = out.find(tok)
-        if i >= 0:
-            out = out[:i].strip()
-    for tok in (SOT + "user", SOT + "model", SOT):
-        i = out.find(tok)
-        if i > 0:
-            out = out[:i].strip()
-    return out
+def extract_reply(generated: str, prompt: str) -> str:
+    """Return only the model's turn from the full generated sequence."""
+    if generated.startswith(prompt):
+        reply = generated[len(prompt) :]
+    else:
+        reply = generated.replace(prompt, "")
+    reply = reply.strip()
+    for marker in (END_OF_TURN, "<eos>", "<pad>"):
+        cut = reply.find(marker)
+        if cut >= 0:
+            reply = reply[:cut].strip()
+    for marker in (START_OF_TURN + "user", START_OF_TURN + "model", START_OF_TURN):
+        cut = reply.find(marker)
+        if cut > 0:
+            reply = reply[:cut].strip()
+    return reply
 
 
-class Ijeoma:
-    def __init__(self, preset, adapter_path, lora_rank=8):
-        self.preset, self.adapter_path, self.rank = preset, adapter_path, lora_rank
-        self.lock = threading.Lock()
-        self.models = {}
-        self.models["ijeoma"] = self._load(with_adapter=True)
+class IjeomaModel:
+    """Gemma 3 1B with and without the Ijeoma AI LoRA adapter."""
 
-    def _load(self, with_adapter):
-        import keras_hub as kh
+    def __init__(self, preset: str, adapter_path: str, lora_rank: int = 8) -> None:
+        self.preset = preset
+        self.adapter_path = adapter_path
+        self.lora_rank = lora_rank
+        self._lock = threading.Lock()
+        self._models: dict[str, object] = {"ijeoma": self._load(with_adapter=True)}
+
+    def _load(self, with_adapter: bool):
+        import keras_hub
         import numpy as np
 
-        t0 = time.time()
-        m = kh.models.Gemma3CausalLM.from_preset(self.preset)
+        started = time.time()
+        model = keras_hub.models.Gemma3CausalLM.from_preset(self.preset)
         if with_adapter:
-            m.backbone.enable_lora(rank=self.rank)
-            z = np.load(self.adapter_path)
-            saved = {str(n): z[f"w{i}"] for i, n in enumerate(z["names"])}
-            hit = 0
-            for w in m.weights:
-                key = getattr(w, "path", None) or w.name
+            model.backbone.enable_lora(rank=self.lora_rank)
+            archive = np.load(self.adapter_path)
+            saved = {str(name): archive[f"w{i}"] for i, name in enumerate(archive["names"])}
+            loaded = 0
+            for weight in model.weights:
+                key = getattr(weight, "path", None) or weight.name
                 if key in saved:
-                    w.assign(saved[key])
-                    hit += 1
-            if hit != len(saved):
-                raise RuntimeError(f"adapter loaded {hit} of {len(saved)} tensors - "
-                                   f"wrong rank or wrong base model?")
-        m.compile(sampler="greedy")
-        m.generate_function = None
-        tok = m.preprocessor.tokenizer
-        stops = [int(tok.token_to_id(t)) for t in (EOT, "<eos>")
-                 if tok.token_to_id(t) is not None]
-        m._ijeoma_stops = stops or "auto"
-        print(f"loaded {'Ijeoma AI' if with_adapter else 'base'} model "
-              f"in {time.time() - t0:.0f}s")
-        return m
+                    weight.assign(saved[key])
+                    loaded += 1
+            if loaded != len(saved):
+                raise RuntimeError(
+                    f"adapter: loaded {loaded} of {len(saved)} tensors; "
+                    "check the LoRA rank and the base model preset"
+                )
+        model.compile(sampler="greedy")
+        model.generate_function = None
 
-    def has(self, which):
-        return which in self.models
+        tokenizer = model.preprocessor.tokenizer
+        stop_ids = [
+            int(tokenizer.token_to_id(t))
+            for t in (END_OF_TURN, "<eos>")
+            if tokenizer.token_to_id(t) is not None
+        ]
+        model.stop_token_ids_ = stop_ids or "auto"
+        name = "Ijeoma AI" if with_adapter else "base"
+        print(f"loaded {name} model in {time.time() - started:.0f}s")
+        return model
 
-    def ensure(self, which):
-        if which not in self.models:
-            with self.lock:
-                if which not in self.models:
-                    self.models[which] = self._load(with_adapter=(which == "ijeoma"))
+    def ensure_loaded(self, variant: Variant) -> None:
+        if variant not in self._models:
+            with self._lock:
+                if variant not in self._models:
+                    self._models[variant] = self._load(with_adapter=variant == "ijeoma")
 
-    def generate(self, prompt, which="ijeoma", max_new_tokens=320):
-        self.ensure(which)
-        m = self.models[which]
+    def generate(
+        self, prompt: str, variant: Variant = "ijeoma", max_new_tokens: int = 320
+    ) -> tuple[str, float]:
+        """Generate a reply. Returns (text, seconds)."""
+        self.ensure_loaded(variant)
+        model = self._models[variant]
         text = chat_template(prompt)
-        n = len(m.preprocessor.tokenizer.tokenize(text))
-        need = n + max_new_tokens
-        max_length = next((b for b in BUCKETS if b >= need), BUCKETS[-1])
-        if n >= max_length:
-            return "(passage too long for the model - shorten it and try again)", 0.0
-        with self.lock:
-            t0 = time.time()
-            raw = m.generate(text, max_length=max_length, stop_token_ids=m._ijeoma_stops)
-            dt = time.time() - t0
-        return _strip(raw, text), dt
+        n_prompt = len(model.preprocessor.tokenizer.tokenize(text))
+        needed = n_prompt + max_new_tokens
+        max_length = next((b for b in LENGTH_BUCKETS if b >= needed), LENGTH_BUCKETS[-1])
+        if n_prompt >= max_length:
+            return "The passage is too long for the model. Shorten it and try again.", 0.0
+
+        with self._lock:
+            started = time.time()
+            generated = model.generate(
+                text, max_length=max_length, stop_token_ids=model.stop_token_ids_
+            )
+            elapsed = time.time() - started
+        return extract_reply(generated, text), elapsed
 
 
-class FakeIjeoma:
-    """Stand-in for testing the pages without a GPU or a Gemma download."""
+class StubModel:
+    """Drop-in replacement that returns canned text; for testing the UI without a GPU."""
 
-    def __init__(self, *a, **k):
-        self.models = {"ijeoma": None}
-
-    def has(self, which):
-        return True
-
-    def ensure(self, which):
+    def __init__(self, *_args, **_kwargs) -> None:
         pass
 
-    def generate(self, prompt, which="ijeoma", max_new_tokens=320):
-        tag = prompt.split("]")[0] + "]"
+    def ensure_loaded(self, variant: Variant) -> None:
+        pass
+
+    def generate(
+        self, prompt: str, variant: Variant = "ijeoma", max_new_tokens: int = 320
+    ) -> tuple[str, float]:
+        tag = prompt.split("]", 1)[0] + "]"
         if tag == "[CLASSIFY]":
-            out = ('{\n  "country": "Ghana",\n  "theme": "Fort & Castle",\n  "terrain": '
-                   '"Coastal",\n  "traveler_profile": "History and heritage",\n  '
-                   '"world_heritage": true\n}')
-        else:
-            q = prompt.split("QUESTION:")[-1].split("\n")[0].strip() if "QUESTION:" in prompt else ""
-            out = f"[{which} - fake output] {tag} {q}"[:300]
-        return out, 0.0
+            return (
+                '{\n  "country": "Ghana",\n  "theme": "Fort & Castle",\n'
+                '  "terrain": "Coastal",\n  "traveler_profile": "History and heritage",\n'
+                '  "world_heritage": true\n}',
+                0.0,
+            )
+        question = ""
+        if "QUESTION:" in prompt:
+            question = prompt.split("QUESTION:")[-1].split("\n")[0].strip()
+        return f"[stub {variant}] {tag} {question}".strip(), 0.0

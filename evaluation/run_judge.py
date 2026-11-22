@@ -1,26 +1,51 @@
-"""Offline LLM judge for Ijeoma AI eval CSVs (see docs/DECISIONS.md D-16, D-20).
+"""LLM-as-judge evaluation for Ijeoma AI predictions.
 
-Scores each answerable grounded item (answer / digest / summarize) 1-5 on
-factual accuracy, cultural nuance and helpfulness, and lists every atomic
-claim with whether the source passage supports it.
+Reads an evaluation CSV written by the training notebook (one row per test item,
+with the prompt in ``input``, the model output in ``pred`` and the reference in
+``ref``). For every answerable grounded item -- tasks ``answer``, ``digest`` and
+``summarize`` whose reference is not a refusal -- a judge model:
 
-    OPENAI_API_KEY=... python3 evaluation/run_judge.py results/run2_full/eval_tuned_with_input.csv
+* scores the output 1-5 for factual accuracy, cultural nuance and helpfulness,
+  judged against the source passage only; and
+* lists each atomic factual claim in the output and marks whether the passage
+  supports it.
+
+The headline metric, ``claims_supported_rate``, is supported claims divided by
+all claims across judged items. It is the project's success criterion
+(target >= 0.90).
+
+Example::
+
+    export OPENAI_API_KEY=...
+    python evaluation/run_judge.py results/run2_full/eval_tuned_with_input.csv
+
+Writes ``<input>_judged.csv`` (per-item scores) and prints a JSON summary.
 """
-import json, os, re, sys, time, urllib.request
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
 import pandas as pd
 
-MODEL = os.environ.get("JUDGE_MODEL", "gpt-5.4-mini")
-GROUNDED = ("answer", "digest", "summarize")
-RE_REFUSAL = re.compile(
-    r"((?:does|do)(?:\s+not|n't)\s+"
-    r"(?:say|mention|cover|provide|describe|give|list|include|state|have)"
-    r"|i (?:cannot|can't|am not able|do not have|don't have)"
-    r"|cannot advise|can't advise|unable to|no information"
-    r"|not covered|not mentioned|not stated"
-    r"|source does not|passage does not)", re.I)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "pipeline"))
+from ijeoma_build import RE_REFUSAL, extract_passage
 
-PROMPT = """You are grading a travel assistant's answer about a West African destination.
+API_URL = "https://api.openai.com/v1/chat/completions"
+DEFAULT_MODEL = "gpt-5.4-mini"
+GROUNDED_TASKS = ("answer", "digest", "summarize")
+MAX_PASSAGE_CHARS = 6000
+RUBRIC = ("factual_accuracy", "cultural_nuance", "helpfulness")
+
+JUDGE_PROMPT = """You are grading a travel assistant's answer about a West African destination.
 Score it against the SOURCE PASSAGE only, from 1 (poor) to 5 (excellent), on:
 - factual_accuracy: every claim is supported by the passage; nothing invented
 - cultural_nuance: respectful, specific, free of stereotypes and Western travel cliches
@@ -42,61 +67,112 @@ ASSISTANT ANSWER:
 {answer}"""
 
 
-def judge(task, passage, answer):
-    body = json.dumps({"model": MODEL, "response_format": {"type": "json_object"},
-                       "messages": [{"role": "user", "content": PROMPT.format(
-                           task=task, passage=passage[:6000], answer=answer)}]}).encode()
-    for attempt in range(4):
+def call_judge(
+    task: str, passage: str, answer: str, model: str, api_key: str, retries: int = 4
+) -> dict | None:
+    """Send one item to the judge; return its parsed JSON verdict, or None."""
+    body = json.dumps(
+        {
+            "model": model,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {
+                    "role": "user",
+                    "content": JUDGE_PROMPT.format(
+                        task=task, passage=passage[:MAX_PASSAGE_CHARS], answer=answer
+                    ),
+                }
+            ],
+        }
+    ).encode()
+    headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+    for attempt in range(retries):
         try:
-            req = urllib.request.Request(
-                "https://api.openai.com/v1/chat/completions", data=body,
-                headers={"Authorization": f"Bearer {os.environ['OPENAI_API_KEY']}",
-                         "Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=180) as r:
-                return json.loads(json.load(r)["choices"][0]["message"]["content"])
-        except Exception as exc:
-            if attempt == 3:
-                print("judge failed:", exc, file=sys.stderr)
-            time.sleep(2 ** attempt)
+            request = urllib.request.Request(API_URL, data=body, headers=headers)
+            with urllib.request.urlopen(request, timeout=180) as response:
+                payload = json.load(response)
+            return json.loads(payload["choices"][0]["message"]["content"])
+        except (urllib.error.URLError, TimeoutError, KeyError, json.JSONDecodeError) as exc:
+            if attempt == retries - 1:
+                print(f"judge call failed after {retries} attempts: {exc}", file=sys.stderr)
+                return None
+            time.sleep(2**attempt)
     return None
 
 
-def main(path):
-    df = pd.read_csv(path)
-    items = df[df.task.isin(GROUNDED) & ~df.ref.astype(str).str.contains(RE_REFUSAL)]
+def judge_item(row: pd.Series, model: str, api_key: str) -> dict | None:
+    """Judge one evaluation row and flatten the verdict into a result record."""
+    prompt = row["input"]
+    task_text = prompt[: prompt.find("PASSAGE:")].strip()
+    verdict = call_judge(task_text, extract_passage(prompt), str(row["pred"]), model, api_key)
+    if verdict is None:
+        return None
+    claims = verdict.get("claims") or []
+    return {
+        "row": row.name,
+        "task": row["task"],
+        **{k: verdict.get(k) for k in RUBRIC},
+        "claims_total": len(claims),
+        "claims_supported": sum(bool(c.get("supported")) for c in claims),
+        "unsupported": json.dumps(
+            [c.get("claim") for c in claims if not c.get("supported")], ensure_ascii=False
+        ),
+    }
 
-    def work(row):
-        inp = row["input"]
-        cut = inp.find("PASSAGE:")
-        s = judge(inp[:cut].strip(), inp[cut + 8:].strip(), str(row["pred"]))
-        if not s:
-            return None
-        claims = s.get("claims") or []
-        return {"row": row.name, "task": row["task"],
-                "factual_accuracy": s.get("factual_accuracy"),
-                "cultural_nuance": s.get("cultural_nuance"),
-                "helpfulness": s.get("helpfulness"),
-                "claims_total": len(claims),
-                "claims_supported": sum(bool(c.get("supported")) for c in claims),
-                "unsupported": json.dumps([c.get("claim") for c in claims
-                                           if not c.get("supported")], ensure_ascii=False)}
 
-    with ThreadPoolExecutor(8) as ex:
-        out = [r for r in ex.map(work, [r for _, r in items.iterrows()]) if r]
-    res = pd.DataFrame(out)
-    res.to_csv(path.replace(".csv", "_judged.csv"), index=False)
-    tot, sup = res.claims_total.sum(), res.claims_supported.sum()
-    summary = {"judged": len(res), "of_eligible": len(items),
-               "factual_accuracy": round(res.factual_accuracy.mean(), 2),
-               "cultural_nuance": round(res.cultural_nuance.mean(), 2),
-               "helpfulness": round(res.helpfulness.mean(), 2),
-               "claims_total": int(tot), "claims_supported": int(sup),
-               "claims_supported_rate": round(sup / tot, 3) if tot else None,
-               "by_task_rate": {t: round(g.claims_supported.sum() / max(1, g.claims_total.sum()), 3)
-                                for t, g in res.groupby("task")}}
+def summarise(results: pd.DataFrame, n_eligible: int, model: str) -> dict:
+    total, supported = results.claims_total.sum(), results.claims_supported.sum()
+    return {
+        "judge_model": model,
+        "judged": len(results),
+        "eligible": n_eligible,
+        **{k: round(float(results[k].mean()), 2) for k in RUBRIC},
+        "claims_total": int(total),
+        "claims_supported": int(supported),
+        "claims_supported_rate": round(float(supported / total), 3) if total else None,
+        "claims_supported_rate_by_task": {
+            task: round(float(g.claims_supported.sum() / max(1, g.claims_total.sum())), 3)
+            for task, g in results.groupby("task")
+        },
+    }
+
+
+def main(argv: list[str] | None = None) -> dict:
+    parser = argparse.ArgumentParser(
+        description="Score Ijeoma AI predictions with an LLM judge.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Requires OPENAI_API_KEY in the environment.",
+    )
+    parser.add_argument("eval_csv", type=Path, help="evaluation CSV with an 'input' column")
+    parser.add_argument("--model", default=os.environ.get("JUDGE_MODEL", DEFAULT_MODEL))
+    parser.add_argument("--workers", type=int, default=8, help="parallel judge requests")
+    args = parser.parse_args(argv)
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        parser.error("OPENAI_API_KEY is not set")
+
+    df = pd.read_csv(args.eval_csv)
+    if "input" not in df.columns:
+        parser.error(f"{args.eval_csv} has no 'input' column; re-export it from the notebook")
+
+    is_refusal = df["ref"].astype(str).map(lambda s: bool(RE_REFUSAL.search(s)))
+    eligible = df[df["task"].isin(GROUNDED_TASKS) & ~is_refusal]
+
+    with ThreadPoolExecutor(args.workers) as pool:
+        records = pool.map(
+            lambda r: judge_item(r, args.model, api_key), [r for _, r in eligible.iterrows()]
+        )
+        results = pd.DataFrame([r for r in records if r])
+
+    out_path = args.eval_csv.with_name(f"{args.eval_csv.stem}_judged.csv")
+    results.to_csv(out_path, index=False)
+
+    summary = summarise(results, len(eligible), args.model)
     print(json.dumps(summary, indent=2))
+    print(f"per-item scores: {out_path}", file=sys.stderr)
     return summary
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main()

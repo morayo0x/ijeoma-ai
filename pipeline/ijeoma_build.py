@@ -35,11 +35,11 @@ RE_TIME = re.compile(r"\b\d{1,2}(?::\d{2})?\s*(?:AM|PM)\b", re.I)
 RE_NUM = re.compile(r"\d[\d,.]*")
 RE_PROPER = re.compile(r"\b[A-Z][a-zÀ-ɏ'’\-]{2,}\b")
 
-LENGTH_BOUNDS = {          # words
+LENGTH_BOUNDS = {  # words
     "classify": (5, 120),
     "answer": (3, 90),
     "digest": (40, 140),
-    "summarize": (8, 110),   # spans one-liners through three-sentence summaries
+    "summarize": (8, 110),  # spans one-liners through three-sentence summaries
     "refuse": (8, 90),
 }
 
@@ -52,14 +52,66 @@ CLASSIFY_KEYS = {"country", "theme", "terrain", "traveler_profile", "world_herit
 # Words that routinely open a sentence or name a concept and so are not
 # evidence that the model invented an entity.
 STOPWORD_PROPER = {
-    "The", "This", "That", "It", "They", "There", "A", "An", "In", "On", "At",
-    "If", "When", "What", "Which", "Where", "How", "You", "Your", "I", "We",
-    "Check", "Hours", "Passage", "Its", "His", "Her", "African", "West",
-    "Africa", "None", "True", "False", "Nature", "Wildlife", "Culture",
-    "Museum", "Gallery", "Historic", "Site", "Monument", "Memorial", "Coast",
-    "Beach", "Landscape", "Scenery", "Fort", "Castle", "Palace", "Royal",
-    "Archaeological", "Town", "Area", "Guide", "General", "Attraction",
-    "Family", "Leisure", "Heritage", "World",
+    "The",
+    "This",
+    "That",
+    "It",
+    "They",
+    "There",
+    "A",
+    "An",
+    "In",
+    "On",
+    "At",
+    "If",
+    "When",
+    "What",
+    "Which",
+    "Where",
+    "How",
+    "You",
+    "Your",
+    "I",
+    "We",
+    "Check",
+    "Hours",
+    "Passage",
+    "Its",
+    "His",
+    "Her",
+    "African",
+    "West",
+    "Africa",
+    "None",
+    "True",
+    "False",
+    "Nature",
+    "Wildlife",
+    "Culture",
+    "Museum",
+    "Gallery",
+    "Historic",
+    "Site",
+    "Monument",
+    "Memorial",
+    "Coast",
+    "Beach",
+    "Landscape",
+    "Scenery",
+    "Fort",
+    "Castle",
+    "Palace",
+    "Royal",
+    "Archaeological",
+    "Town",
+    "Area",
+    "Guide",
+    "General",
+    "Attraction",
+    "Family",
+    "Leisure",
+    "Heritage",
+    "World",
 }
 
 
@@ -73,9 +125,14 @@ def normalise_numbers(text: str) -> set[str]:
     return out
 
 
+def read_jsonl(path: str) -> list[dict]:
+    with open(path, encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
 def extract_passage(inp: str) -> str:
     idx = inp.find("PASSAGE:")
-    return inp[idx + len("PASSAGE:"):].strip() if idx >= 0 else ""
+    return inp[idx + len("PASSAGE:") :].strip() if idx >= 0 else ""
 
 
 def validate(pair: dict) -> list[str]:
@@ -123,8 +180,11 @@ def validate(pair: dict) -> list[str]:
     # 5 - proper nouns must be grounded in the passage
     if has_passage and task in GROUNDED_TASKS:
         p_lower = passage.lower()
-        unseen = [w for w in RE_PROPER.findall(out)
-                  if w not in STOPWORD_PROPER and w.lower() not in p_lower]
+        unseen = [
+            w
+            for w in RE_PROPER.findall(out)
+            if w not in STOPWORD_PROPER and w.lower() not in p_lower
+        ]
         if len(unseen) > 1:
             fails.append("entity_not_in_passage")
 
@@ -151,15 +211,36 @@ RE_REFUSAL = re.compile(
     r"|i (?:cannot|can't|am not able|do not have|don't have)"
     r"|cannot advise|can't advise|unable to|no information"
     r"|not covered|not mentioned|not stated"
-    r"|source does not|passage does not)", re.I)
+    r"|source does not|passage does not)",
+    re.I,
+)
 
-ENGLISH_MARKERS = {"the", "a", "an", "is", "and", "of", "in", "it", "to",
-                   "was", "are", "for", "on", "with", "as", "by", "that", "at"}
+ENGLISH_MARKERS = {
+    "the",
+    "a",
+    "an",
+    "is",
+    "and",
+    "of",
+    "in",
+    "it",
+    "to",
+    "was",
+    "are",
+    "for",
+    "on",
+    "with",
+    "as",
+    "by",
+    "that",
+    "at",
+}
 
 
 # --------------------------------------------------------------------------
 # Split
 # --------------------------------------------------------------------------
+
 
 def split_passages(pairs, test_frac, seed):
     """Hold out whole passages, stratified by country."""
@@ -170,7 +251,7 @@ def split_passages(pairs, test_frac, seed):
             by_country[str(p.get("country"))].add(p["passage_id"])
 
     test_ids: set[str] = set()
-    for country, ids in by_country.items():
+    for ids in by_country.values():
         ids = sorted(ids)
         rng.shuffle(ids)
         k = max(1, round(len(ids) * test_frac)) if len(ids) >= 3 else 0
@@ -180,12 +261,12 @@ def split_passages(pairs, test_frac, seed):
 
 def run(out_dir, teacher_path, test_frac, seed):
     det_path = os.path.join(out_dir, "pairs_deterministic.jsonl")
-    pairs = [json.loads(l) for l in open(det_path, encoding="utf-8")]
+    pairs = read_jsonl(det_path)
     n_det = len(pairs)
 
     n_teacher = 0
     if teacher_path and os.path.exists(teacher_path):
-        teach = [json.loads(l) for l in open(teacher_path, encoding="utf-8")]
+        teach = read_jsonl(teacher_path)
         pairs += teach
         n_teacher = len(teach)
 
@@ -218,7 +299,7 @@ def run(out_dir, teacher_path, test_frac, seed):
             continue
         key = re.sub(r"\W+", " ", str(p["output"]).lower()).strip()[:160]
         if p.get("task") == "refuse":
-            key = f"{p.get('subtype')}|{key}"   # refusals are meant to repeat
+            key = f"{p.get('subtype')}|{key}"  # refusals are meant to repeat
             if seen.get(key, 0) >= 40:
                 dup += 1
                 continue
@@ -234,7 +315,7 @@ def run(out_dir, teacher_path, test_frac, seed):
     train, test = [], []
     for p in deduped:
         pid = p.get("passage_id")
-        if pid is None:                       # scope refusals carry no passage
+        if pid is None:  # scope refusals carry no passage
             (test if rng.random() < test_frac else train).append(p)
         else:
             (test if pid in test_ids else train).append(p)
@@ -247,8 +328,7 @@ def run(out_dir, teacher_path, test_frac, seed):
         path = os.path.join(out_dir, name)
         with open(path, "w", encoding="utf-8") as fh:
             for r in rows:
-                rec = ({"input": r["input"], "output": r["output"]}
-                       if lab_format else r)
+                rec = {"input": r["input"], "output": r["output"]} if lab_format else r
                 fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
         return path
 
@@ -291,5 +371,4 @@ if __name__ == "__main__":
     ap.add_argument("--test-frac", type=float, default=0.15)
     ap.add_argument("--seed", type=int, default=20261115)
     a = ap.parse_args()
-    print(json.dumps(run(a.out, a.teacher, a.test_frac, a.seed),
-                     indent=2, ensure_ascii=False))
+    print(json.dumps(run(a.out, a.teacher, a.test_frac, a.seed), indent=2, ensure_ascii=False))

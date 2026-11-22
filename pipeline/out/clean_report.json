@@ -1,0 +1,69 @@
+{
+  "rows_in": 1947,
+  "rows_kept": 1586,
+  "rejected": {
+    "too_short_after_cleaning": 249,
+    "duplicate_name": 53,
+    "not_a_place": 52,
+    "web_boilerplate": 7
+  },
+  "chars_before_mean": 3423.6260914227014,
+  "chars_after_mean": 1374.763556116015,
+  "theme_counts": {
+    "Town or Area Guide": 711,
+    "Nature & Wildlife": 291,
+    "Museum & Gallery": 109,
+    "Archaeological Site": 93,
+    "General Attraction": 66,
+    "Monument & Memorial": 63,
+    "Fort & Castle": 55,
+    "Landscape & Scenery": 54,
+    "Sacred & Ceremonial": 44,
+    "Coast & Beach": 42,
+    "Historic Site": 30,
+    "Palace & Royal Site": 20,
+    "Family & Leisure": 8
+  },
+  "theme_source": {
+    "type": 1397,
+    "keyword": 123,
+    "fallback": 66
+  },
+  "terrain_counts": {
+    "(unassigned)": 645,
+    "Riverine": 206,
+    "Coastal": 186,
+    "Forest": 139,
+    "Island": 127,
+    "Mountain or highland": 112,
+    "Lake or wetland": 57,
+    "Savannah": 39,
+    "Desert or Sahel": 38,
+    "Urban": 37
+  },
+  "world_heritage": 77,
+  "country_counts": {
+    "Nigeria": 714,
+    "Ghana": 261,
+    "Cape Verde": 109,
+    "Senegal": 77,
+    "Burkina Faso": 58,
+    "Mali": 52,
+    "Niger": 40,
+    "Mauritania": 36,
+    "The Gambia": 35,
+    "Guinea-Bissau": 33,
+    "Côte d'Ivoire": 31,
+    "Sierra Leone": 31,
+    "Guinea": 30,
+    "Togo": 29,
+    "Benin": 28,
+    "Liberia": 15,
+    "The Gambia; Senegal": 2,
+    "Burkina Faso; Niger": 1,
+    "Niger; Nigeria": 1,
+    "Côte d'Ivoire; Guinea": 1,
+    "Benin; Ghana": 1,
+    "Benin; Burkina Faso; Niger": 1
+  }
+}
