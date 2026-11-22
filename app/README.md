@@ -22,6 +22,11 @@ valid for up to 72 hours or until the session ends.
 
 ## Running on a GPU host
 
+On Linux, `bash run_demo.sh` performs every step below: it creates a virtual
+environment, installs dependencies, prompts for the Hugging Face token and starts
+the application with a public link.
+
+
 Requires an NVIDIA GPU with at least 12 GB of memory (6 GB without the Compare
 page), Python 3.10+, and a Hugging Face token for an account that has accepted
 the [Gemma licence](https://huggingface.co/google/gemma-3-1b-it).

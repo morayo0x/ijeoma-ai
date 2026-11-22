@@ -224,10 +224,7 @@ model side by side). On Colab, run
 public link. On a local GPU:
 
 ```bash
-pip install -U "jax[cuda12]"
-pip install -r app/requirements.txt
-export HF_TOKEN=...
-python app/ijeoma_app.py        # http://localhost:7860
+bash run_demo.sh                # sets up a venv, asks for the HF token, starts the app
 ```
 
 See [`app/README.md`](app/README.md) for options.
