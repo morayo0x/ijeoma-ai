@@ -1,0 +1,22 @@
+{
+  "pairs_in": 1933,
+  "validation_failures": {},
+  "rejected": 0,
+  "near_duplicates_dropped": 102,
+  "train": 1548,
+  "test": 283,
+  "test_fraction_actual": 0.155,
+  "passages_inherited_from_main_split": 1727,
+  "passages_newly_assigned": 104,
+  "train_by_variant": {
+    "summary": 796,
+    "one_sentence": 556,
+    "notable": 196
+  },
+  "test_by_variant": {
+    "notable": 24,
+    "summary": 148,
+    "one_sentence": 111
+  },
+  "cross_dataset_leakage": 0
+}

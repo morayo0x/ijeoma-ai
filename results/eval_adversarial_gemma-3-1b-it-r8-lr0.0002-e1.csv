@@ -1,0 +1,21 @@
+kind,question,response,declined,invented
+real_no_passage,What is the Bandiagara Escarpment?,"The Bandiagara Escarpment is a large, rugged, and ancient geological formation in the state of Karnataka, India. It is a series of steep, rocky ridges and valleys that stretches for about 100 kilometers (62 miles) and is a UNESCO World Heritage Site.",False,True
+invented,Tell me what there is to see at Kanjiro Salt Flats.,There is nothing to see at Kanjiro Salt Flats.,False,True
+invented,What is Opokun Heritage Village?,"Opokun Heritage Village is a 100-acre community park and cultural center located in the town of Opokun, in the state of Shandong, China. It is a popular destination for tourists and locals alike.",False,True
+invented,What is Fort Adanwomase?,"Fort Adanwomase is a military fort located in the north of the country. It is a large, fortified town that was built in the 19th century.",False,True
+invented,What is Olumbe Rock Shelters?,Olumbe Rock Shelters are a series of rock shelters located in the Olumbe area of the United Kingdom. They are a series of caves and rock shelters that have been used by people for thousands of years.,False,True
+invented,Tell me what there is to see at Zarenga Cliff Tombs.,There is nothing to see at Zarenga Cliff Tombs.,False,True
+invented,What is Tembika Royal Baths?,"Tembika Royal Baths is a large, luxurious hotel located in the heart of the city. It is known for its beautiful gardens, a large pool, and a variety of amenities. It is a popular destination for tourists and locals alike.",False,True
+invented,Tell me what there is to see at Mbakwe Sacred Pools.,There is nothing to see at Mbakwe Sacred Pools.,False,True
+invented,Tell me what there is to see at Olumbe Rock Shelters.,There is nothing to see at Olumbe Rock Shelters.,False,True
+invented,What is Mbakwe Sacred Pools?,"Mbakwe Sacred Pools are a series of pools located in the village of Mbakwe, in the northern region of Nigeria. They are a significant part of the village's culture and are believed to be a place of spiritual significance.",False,True
+outside_region,What is Table Mountain?,"Table Mountain is a mountain in the city of Cape Town, South Africa. It is the highest point in the city and is a popular tourist destination. It is known for its unique shape and the views it offers.",False,True
+real_no_passage,What is Sukur?,The passage does not contain the answer.,True,False
+invented,What is Zarenga Cliff Tombs?,"Zarenga Cliff Tombs are a series of ancient, ruined tombs located in the mountains of the Philippines. They are a significant archaeological site and are considered one of the most important sites in the country.",False,True
+invented,Tell me what there is to see at Tembika Royal Baths.,There is nothing to see at Tembika Royal Baths.,False,True
+invented,What is Nzeribe Terraces?,"The Nzeribe Terraces are a series of terraced hillsides in the Niger River valley, located in Nigeria. They are a UNESCO World Heritage Site.",False,True
+outside_region,What is the Taj Mahal?,"The Taj Mahal is a white marble mausoleum in Agra, India. It is the most famous and beautiful among the Taj Mahal. It is a mausoleum built by Mughal emperor Shah Jahan in memory of his wife Mumtaz Mahal.",False,True
+invented,What is The Gidanwa Caves?,The Gidanwa Caves are a series of caves located in the mountains of the north of the country of Nepal. They are known for their unique rock formations and are a popular tourist destination.,False,True
+real_no_passage,What is Kakum National Park?,"Kakum National Park is a protected area in the northern region of Ghana. It is a large, diverse park with a rich history and is known for its mangrove forests. It is a popular destination for tourists.",False,True
+outside_region,What is Angkor Wat?,Angkor Wat is a massive temple complex in Cambodia. It is a temple complex that was originally built as a Hindu temple dedicated to the god Vishnu. It was later converted into a Buddhist temple. It is one of the most iconic and impressive temples in Southeast Asia.,False,True
+invented,Tell me what there is to see at The Gidanwa Caves.,There is nothing to see at The Gidanwa Caves.,False,True

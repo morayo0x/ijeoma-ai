@@ -1,0 +1,45 @@
+{
+  "pairs_in": {
+    "deterministic": 2498,
+    "teacher": 3476
+  },
+  "validation_failures": {},
+  "rejected": 0,
+  "near_duplicates_dropped": 10,
+  "train": 5006,
+  "test": 958,
+  "test_fraction_actual": 0.161,
+  "train_by_task": {
+    "answer": 2390,
+    "classify": 1027,
+    "refuse": 1133,
+    "digest": 456
+  },
+  "test_by_task": {
+    "answer": 477,
+    "digest": 70,
+    "classify": 173,
+    "refuse": 238
+  },
+  "test_by_country": {
+    "Nigeria": 212,
+    "Ghana": 189,
+    "Senegal": 88,
+    "Cape Verde": 86,
+    "Mali": 66,
+    "Burkina Faso": 52,
+    "Niger": 47,
+    "Côte d'Ivoire": 35,
+    "Mauritania": 30,
+    "Guinea": 28,
+    "Guinea-Bissau": 26,
+    "Sierra Leone": 25,
+    "Togo": 23,
+    "The Gambia": 20,
+    "Benin": 19,
+    "Liberia": 12
+  },
+  "passages_train": 1183,
+  "passages_test": 207,
+  "passage_leakage": 0
+}

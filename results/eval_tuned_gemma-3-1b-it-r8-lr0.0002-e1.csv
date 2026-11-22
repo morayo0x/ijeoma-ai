@@ -1,0 +1,201 @@
+task,subtype,country,pred,ref,json_ok,hit_country,hit_theme,hit_terrain,hit_traveler_profile,pred_theme,true_theme,refused,gold_refusal,grounded,rouge_l
+classify,,Cape Verde,"{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Hiking and Trekking"",
+  ""terrain"": ""Mountains, valleys, coastal"",
+  ""traveler_profile"": ""Adventurous, outdoor enthusiasts, hikers, nature lovers"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Island"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Hiking and Trekking,Town or Area Guide,,,,
+refuse,abstain_hours,Mali,The passage does not contain the answer.,The passage does not give opening hours for Kouroufing National Park. Hours change and are not covered by this source.,,,,,,,,True,True,,
+classify,,Togo,"{
+  ""country"": ""Togo"",
+  ""theme"": ""Tourism"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""General"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Togo"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,True,False,Tourism,Town or Area Guide,,,,
+classify,,Nigeria,"Here's the JSON output containing the destination's catalogue labels, based on the provided passage:
+
+```json
+{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Nature"",
+  ""terrain"": ""Forest"",
+  ""traveler_profile"": ""Nature"",
+  ""world_heritage"": false
+}
+```
+
+**Explanation of the choices:**
+
+*   **country:** Nigeria
+*   **theme:** Nature
+*   **terrain:** Forest
+*   **traveler_profile:** Nature
+*   **world_heritage:** false (The passage doesn't mention World Heritage status)","{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Nature & Wildlife"",
+  ""terrain"": ""Forest"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": false
+}",True,True,False,True,False,Nature,Nature & Wildlife,,,,
+classify,,Togo,"{
+  ""country"": ""Togo"",
+  ""theme"": ""Historical, Cultural, Tourism"",
+  ""terrain"": ""Rural, Cemetery"",
+  ""traveler_profile"": ""History, Culture, Nature"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Togo"",
+  ""theme"": ""Monument & Memorial"",
+  ""terrain"": null,
+  ""traveler_profile"": ""Short visit, city sightseeing"",
+  ""world_heritage"": false
+}",True,True,False,False,False,"Historical, Cultural, Tourism",Monument & Memorial,,,,
+answer,what_is,Nigeria,"Awka is the capital city of Anambra State, South East Nigeria. It is an important administrative and educational centre, with a significant student population due to institutions such as Nnamdi Azikiwe University. It is one of the oldest settlements in Igboland, established at the centre of the Nri civilisation, which produced the earliest documented bronze works in Sub-Saharan Africa, around 800 AD, and was the cradle of Igbo civilisation.","Awka (Ọka) is the capital city of Anambra State, South East Nigeria.",,,,,,,,False,False,True,0.2716049382716049
+classify,,Cape Verde,"{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Beach"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Beginner, Relaxing"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Coast & Beach"",
+  ""terrain"": ""Island"",
+  ""traveler_profile"": ""Beach and relaxation"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Beach,Coast & Beach,,,,
+answer,what_is,Cape Verde,"Fogo is an island in the Atlantic, with a cone that rises about 1,000 meters above the valley of a former volcano called Chã de Caldeiras.","Fogo (Eng.: ""fire"") is one of the Cape Verde Islands in the Atlantic.",,,,,,,,False,False,True,0.20512820512820515
+classify,,Ghana,"{
+  ""country"": ""Ghana"",
+  ""theme"": ""Historical"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Historical"",
+  ""world_heritage"": true
+}","{
+  ""country"": ""Ghana"",
+  ""theme"": ""Fort & Castle"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""History and heritage"",
+  ""world_heritage"": true
+}",True,True,False,True,False,Historical,Fort & Castle,,,,
+answer,country,Togo,The German Cemetery of Mango is located in the Savanes Region of Togo.,German Cemetery of Mango is in Togo.,,,,,,,,False,False,True,0.7000000000000001
+answer,theme,Nigeria,"Oraifite is a cultural one. It is a community that celebrates the Afa Olu festival, and it is a place where people can engage in cultural traditions.","It falls under town or area guide. The passage describes it this way: Oraifite is an autonomous, densely populated community in Ekwusigo Local Government Area, Anambra State, Nigeria.",,,,,,,,False,False,True,0.18181818181818182
+classify,,Niger,"{
+  ""country"": ""Algeria"",
+  ""theme"": ""Culture"",
+  ""terrain"": ""Desert"",
+  ""traveler_profile"": ""Cultural"",
+  ""world_heritage"": true
+}","{
+  ""country"": ""Niger"",
+  ""theme"": ""Nature & Wildlife"",
+  ""terrain"": ""Desert or Sahel"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": false
+}",True,False,False,False,False,Culture,Nature & Wildlife,,,,
+classify,,Nigeria,"{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Tourism"",
+  ""terrain"": ""Mountains"",
+  ""traveler_profile"": ""Adventure"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": null,
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Tourism,Town or Area Guide,,,,
+classify,,Nigeria,"{
+  ""country"": ""Nigeria"",
+  ""theme"": ""City"",
+  ""terrain"": ""Urban"",
+  ""traveler_profile"": ""General"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Nigeria"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Riverine"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,City,Town or Area Guide,,,,
+classify,,Guinea-Bissau,"{
+  ""country"": ""Guinea-Bissau"",
+  ""theme"": ""Travel"",
+  ""terrain"": ""Mountainous"",
+  ""traveler_profile"": ""Adventure"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Guinea-Bissau"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Mountain or highland"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Travel,Town or Area Guide,,,,
+answer,what_is,Senegal,"The Musée de la Culture Diola is a museum located in Mlomp, Casamance, Ziguinchor Region, Senegal, that houses an exhibition dedicated to the animist Diola culture.","The Musée de la Culture Diola (aka Musée de la Tradition Diola and Diola Museum) is a museum located in Mlomp, Casamance, Ziguinchor Region, Senegal.",,,,,,,,False,False,True,0.5882352941176471
+classify,,Cape Verde,"{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Beach"",
+  ""terrain"": ""Beach"",
+  ""traveler_profile"": ""Beach"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Cape Verde"",
+  ""theme"": ""Coast & Beach"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""Beach and relaxation"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Beach,Coast & Beach,,,,
+classify,,Burkina Faso,"{
+  ""country"": ""Burkina Faso"",
+  ""theme"": ""Forest"",
+  ""terrain"": ""Forest"",
+  ""traveler_profile"": ""None"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Burkina Faso"",
+  ""theme"": ""Nature & Wildlife"",
+  ""terrain"": ""Forest"",
+  ""traveler_profile"": ""Nature and wildlife, outdoor"",
+  ""world_heritage"": false
+}",True,True,False,True,False,Forest,Nature & Wildlife,,,,
+classify,,Burkina Faso,"{
+  ""country"": ""Mali"",
+  ""theme"": ""Tourism"",
+  ""terrain"": ""Urban"",
+  ""traveler_profile"": ""Tourist"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Burkina Faso"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": null,
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,False,False,False,False,Tourism,Town or Area Guide,,,,
+classify,,Ghana,"{
+  ""country"": ""Ghana"",
+  ""theme"": ""Historical"",
+  ""terrain"": ""Coastal Plain"",
+  ""traveler_profile"": ""Historical"",
+  ""world_heritage"": false
+}","{
+  ""country"": ""Ghana"",
+  ""theme"": ""Town or Area Guide"",
+  ""terrain"": ""Coastal"",
+  ""traveler_profile"": ""General, base for exploring"",
+  ""world_heritage"": false
+}",True,True,False,False,False,Historical,Town or Area Guide,,,,

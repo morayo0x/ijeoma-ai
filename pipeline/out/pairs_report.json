@@ -1,0 +1,47 @@
+{
+  "total": 2498,
+  "by_task": {
+    "classify": 1200,
+    "answer": 900,
+    "refuse": 398
+  },
+  "by_subtype": {
+    "what_is": 339,
+    "country": 290,
+    "theme": 271,
+    "abstain_hours": 62,
+    "abstain_access": 62,
+    "abstain_safety": 62,
+    "abstain_price": 62,
+    "scope_money": 28,
+    "scope_visa": 24,
+    "scope_flights": 23,
+    "scope_security": 21,
+    "scope_health": 20,
+    "scope_booking": 20,
+    "scope_border": 14
+  },
+  "by_country_top": {
+    "Nigeria": 631,
+    "Ghana": 496,
+    "Cape Verde": 237,
+    "Senegal": 162,
+    "Burkina Faso": 121,
+    "Mali": 114,
+    "Niger": 94,
+    "Mauritania": 83,
+    "The Gambia": 78,
+    "Côte d'Ivoire": 76,
+    "Guinea-Bissau": 75,
+    "Sierra Leone": 74,
+    "Guinea": 71,
+    "Togo": 68,
+    "Benin": 66,
+    "Liberia": 38,
+    "The Gambia; Senegal": 4,
+    "Benin; Ghana": 2,
+    "Burkina Faso; Niger": 2,
+    "Niger; Nigeria": 2
+  },
+  "unique_passages_used": 1333
+}

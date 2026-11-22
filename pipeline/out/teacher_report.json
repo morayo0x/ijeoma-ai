@@ -1,0 +1,21 @@
+{
+  "model": "gpt-5.4-mini",
+  "api_calls_this_run": 0,
+  "cached_total": 1750,
+  "pairs_built": 3736,
+  "unparseable_or_skipped": 6,
+  "validation_failures": {
+    "entity_not_in_passage": 209,
+    "refusal_label_mismatch": 40,
+    "number_not_in_passage": 9,
+    "not_english": 4,
+    "length": 1
+  },
+  "pairs_kept": 3476,
+  "rejection_rate": 0.07,
+  "by_task": {
+    "answer": 1977,
+    "refuse": 973,
+    "digest": 526
+  }
+}

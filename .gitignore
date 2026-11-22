@@ -1,0 +1,7 @@
+# extracted copy of data/raw/ijeoma_dataset_v2.zip
+data/raw/v2/
+# duplicate of pipeline/out files, regenerated for each Drive upload
+upload_to_drive/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
