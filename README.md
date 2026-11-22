@@ -221,7 +221,8 @@ A Gradio application with three pages: **Workbench** (any task on any passage),
 **Chat** (multi-turn conversation) and **Compare** (baseline and fine-tuned
 model side by side). On Colab, run
 [`notebooks/ijeoma_demo_colab.ipynb`](notebooks/ijeoma_demo_colab.ipynb) for a
-public link. On a local GPU:
+public link on a free T4 GPU (step-by-step guide:
+[`docs/COLAB_DEMO.md`](docs/COLAB_DEMO.md)). On a local GPU:
 
 ```bash
 bash run_demo.sh                # sets up a venv, asks for the HF token, starts the app
