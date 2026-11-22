@@ -255,6 +255,31 @@ def build_app(model, router: Router) -> gr.Blocks:
             )
         if route.kind == "describe_list":
             return f"{format_list(route)}\n\nReply with a number or a name to hear more."
+        if route.kind == "interest":
+            if not route.choices:
+                where = f" in {route.place}" if route.place else ""
+                return (
+                    f"My sources don't mention {route.keyword}{where}. Try asking about a kind "
+                    "of place instead, such as beaches, wildlife or markets."
+                )
+            state["topic"], state["history"] = None, []
+            state["pending"] = [d.passage_id for d in route.choices]
+            note = "Reply with a number or a name to hear more."
+            if route.groups:
+                lines, n = [], 0
+                for country, places in route.groups:
+                    items = []
+                    for d in places:
+                        n += 1
+                        items.append(f"{n}. {d.name}")
+                    lines.append(f"**{country}**: " + "; ".join(items))
+                return (
+                    f"In my sources, **{route.keyword}** comes up most for these countries:\n\n"
+                    + "\n".join(f"- {line}" for line in lines)
+                    + f"\n\nThat shows where it's mentioned, not a ranking of what each "
+                    f"country is famous for. {note}"
+                )
+            return f"{route.heading}\n\n{format_list(route)}\n\n{note}"
         if route.kind == "help":
             return HELP_TEXT
         if route.kind == "countries":

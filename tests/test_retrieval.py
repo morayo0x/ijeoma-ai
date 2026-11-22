@@ -648,3 +648,33 @@ def test_question_mentioning_a_listed_country_is_not_a_pick(guided):
     assert route.kind == "answer" and route.destination.passage_id == "country-togo-overview"
     assert not route.new_topic or route.destination.name == "Togo"
     assert guided.route("Togo", None, countries).destination.name == "Togo"
+
+
+def test_interest_without_country_groups_by_country(router):
+    route = router.route("i love coconut, which country is know for this?", None, [])
+    assert route.kind == "interest" and route.keyword == "coconut"
+    assert route.groups and all(places for _, places in route.groups)
+
+
+def test_interest_within_a_country(router):
+    route = router.route("I love coconuts where should I visit in Ghana", None, [])
+    assert route.kind == "interest" and route.choices
+    assert all(d.country == "Ghana" for d in route.choices)
+
+
+def test_interest_finds_kente_in_ghana(router):
+    route = router.route("which country is famous for kente?", None, [])
+    assert route.groups[0][0] == "Ghana"
+
+
+def test_interest_with_no_sources(router):
+    route = router.route("I love unicorns", None, [])
+    assert route.kind == "interest" and not route.choices
+
+
+def test_known_place_types_still_recommend(router):
+    assert router.route("I love beaches", None, []).kind == "recommend"
+
+
+def test_junk_passages_are_excluded(router):
+    assert not any("Steidl" in d.name for d in router.index.destinations)

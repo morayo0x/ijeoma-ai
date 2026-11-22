@@ -74,6 +74,18 @@ INTRODUCTION = re.compile(
     r"([A-Za-zÀ-ÿ][\w'-]{1,30}(?:\s+[A-Za-zÀ-ÿ][\w'-]{1,30}){0,2})\s*[.!]?\s*$",
     re.I,
 )
+INTEREST = re.compile(
+    r"\b(i (really )?(love|like|enjoy|adore)|i'?m (really )?into|i am (really )?into|"
+    r"known for|famous for|popular for|where (can|could|do) i (find|see|get|try|eat|buy)|"
+    r"which (country|countries|place|places|town|towns) (is|are|has|have))\b",
+    re.I,
+)
+INTEREST_STOPWORDS = {
+    "love", "like", "enjoy", "adore", "into", "really", "known", "famous", "popular", "find",
+    "get", "try", "eat", "buy", "which", "country", "countries", "place", "places", "town",
+    "towns", "should", "visit", "this", "these", "that", "those", "lot", "most", "very",
+    "much", "has", "have", "for", "the", "and", "can", "could", "where", "would",
+}  # fmt: skip
 COUNTRY_LIST = re.compile(
     r"\b(which|what|list|name|give me|show me|all)\b.{0,40}\b(countries|nations)\b|"
     r"\b(countries|nations)\b.{0,30}\b(in|of) west[- ]?africa\b|"
@@ -336,6 +348,12 @@ def tokens(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", normalise(text).replace("'", " "))
 
 
+def is_junk(passage: str) -> bool:
+    """Text that is mostly capital letters is scraped banner text, not a description."""
+    words = re.findall(r"[A-Za-z]{3,}", passage)
+    return bool(words) and sum(w.isupper() for w in words) / len(words) > 0.3
+
+
 def _label(value) -> str:
     text = str(value or "").strip()
     return "" if text.lower() in ("", "none", "nan", "null") else text
@@ -559,6 +577,8 @@ class Route:
     heading: str = ""  # for lists: what the list is ("waterfalls worth visiting in Togo")
     labels: list[str] = field(default_factory=list)  # for lists: each item's kind of place
     picked: bool = False  # the message only picked an item from the previous list
+    groups: list = field(default_factory=list)  # "interest": [(country, [places])]
+    keyword: str = ""  # "interest": what the user is interested in
 
 
 class PassageIndex:
@@ -580,6 +600,8 @@ class PassageIndex:
         with open(path, encoding="utf-8") as fh:
             for line in fh:
                 r = json.loads(line)
+                if is_junk(r["passage"]):
+                    continue
                 if ";" in str(r["country"]):
                     country = str(r["country"]).replace(";", " /")
                 else:
@@ -1030,6 +1052,34 @@ class Router:
                 scored.append((score, in_corpus, guide))
         return max(scored, key=lambda x: (x[0], x[1]))[2] if scored else None
 
+    def interest_keywords(self, message: str) -> list[str]:
+        """Things the user says they like ("coconut"), as words found in the corpus."""
+        found = []
+        for t in tokens(message):
+            if (
+                len(t) < 3
+                or t in QUERY_WORDS | GENERIC | INTEREST_STOPWORDS | PHRASE_WORDS
+                or COUNTRY_PATTERN.fullmatch(t)
+            ):
+                continue
+            singular = t[:-1] if t.endswith("s") and t[:-1] in self.index._idf else t
+            if singular not in found:
+                found.append(singular)
+        return found
+
+    def places_mentioning(self, words: list[str], country: str | None = None) -> list:
+        """Places whose name or description mention all the words, best matches first."""
+        hits = []
+        for d in self._places:
+            if country and not in_country(d, country):
+                continue
+            text = Counter(tokens(f"{d.name} {d.passage}"))
+            if all(text[w] or text[w + "s"] for w in words):
+                in_name = any(w in d.name_tokens or w + "s" in d.name_tokens for w in words)
+                hits.append(((in_name, sum(text[w] + text[w + "s"] for w in words)), d))
+        hits.sort(key=lambda x: x[0], reverse=True)
+        return [d for _, d in hits]
+
     def country_highlights(self, country: str, k: int = 3) -> list[Destination]:
         """A country's best-known places: World Heritage first, one per kind of place."""
         pool = [
@@ -1308,6 +1358,35 @@ class Router:
 
         themes = requested_themes(text)
         subjects = requested_subjects(text)
+
+        # "I love coconut, which country is known for it?" / "...where in Ghana?"
+        if INTEREST.search(text) and not (themes or subjects):
+            words = self.interest_keywords(text)
+            if words:
+                keyword = " ".join(words)
+                matches = self.places_mentioning(words, country)
+                if not matches:
+                    return Route(
+                        "interest", keyword=keyword, place=country_title(country) if country else ""
+                    )
+                if country:
+                    return Route(
+                        "interest",
+                        choices=matches[:5],
+                        keyword=keyword,
+                        place=country_title(country),
+                        heading=f"Places in {country_title(country)} where {keyword} comes up in my sources:",
+                    )
+                by_country: dict[str, list] = {}
+                for d in matches:
+                    by_country.setdefault(d.country, []).append(d)
+                groups = sorted(by_country.items(), key=lambda kv: len(kv[1]), reverse=True)[:4]
+                return Route(
+                    "interest",
+                    choices=[d for _, places in groups for d in places[:2]],
+                    groups=[(c, places[:2]) for c, places in groups],
+                    keyword=keyword,
+                )
         overview = self.guide(country, "overview")
         if (
             overview
