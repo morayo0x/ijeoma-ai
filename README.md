@@ -6,7 +6,7 @@ to perform three tasks on a passage describing a place:
 
 - **Classification** for a travel catalogue: country, theme, terrain, traveller
   profile and World Heritage status.
-- **Summarisation** as a short traveller digest or a one- to three-sentence summary.
+- **Summarization** as a short traveller digest or a one- to three-sentence summary.
 - **Question answering**, including multi-turn conversation.
 
 The model answers only from the passage it is given. Questions the passage does
