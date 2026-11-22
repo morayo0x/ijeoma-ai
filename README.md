@@ -239,7 +239,11 @@ conversationally, writes a traveller digest ("why should I visit?"), summarises
 of place is it?"). Each reply cites its source and links to the location on
 OpenStreetMap where coordinates are available. A pasted description of a place
 that is not in the corpus (40 words or more, in sentences) is classified and
-summarised, and later questions are answered from that description. Places that are not in the corpus are reported as not
+summarised, and later questions are answered from that description. Questions
+about languages or climate are answered from the destination's passage if it
+covers them, otherwise from the nearest passage that does (within 150 km) or the
+country's regional guide, and the reply names that source; requests for current
+weather are declined. Places that are not in the corpus are reported as not
 found rather than guessed, visa, safety and similar questions are declined, and
 every answer cites its source. Launch it on Colab with
 [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with

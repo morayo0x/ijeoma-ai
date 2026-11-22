@@ -271,3 +271,39 @@ def test_pasted_description_becomes_the_topic(router):
         route = router.route(question, place, [])
         assert route.kind == "answer" and route.destination.passage_id == "custom"
     assert router.route("Tell me about Sukur", place, []).destination.name == "Sukur"
+
+
+@pytest.mark.parametrize(
+    "message", ["What's the weather in Lagos today?", "What's the forecast for Accra this week?"]
+)
+def test_live_weather_is_declined(router, message):
+    assert router.route(message, None, []).kind == "live"
+
+
+def test_facet_without_place_asks_which(router):
+    assert router.route("What's the weather like?", None, []).kind == "which_place"
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["What language do people speak in Ghana?", "When is the rainy season in Nigeria?"],
+)
+def test_country_facet_uses_a_passage_from_that_country(router, message):
+    route = router.route(message, None, [])
+    assert route.kind == "fact"
+    assert route.destination.country in message
+
+
+def test_facet_falls_back_to_a_nearby_passage(router, kakum):
+    route = router.route("What language do they speak there?", kakum, [])
+    assert route.kind == "fact" and route.destination.country == "Ghana"
+
+
+def test_facet_uses_the_place_itself_when_it_covers_it(router):
+    sukur = router.route("Tell me about Sukur", None, []).destination
+    route = router.route("What language do they speak there?", sukur, [])
+    assert route.kind == "answer" and route.destination == sukur
+
+
+def test_best_time_is_not_a_recommendation(router, kakum):
+    assert router.route("When is the best time to visit?", kakum, []).kind == "fact"

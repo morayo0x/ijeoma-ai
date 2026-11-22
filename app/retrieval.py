@@ -201,6 +201,67 @@ ANSWER_STYLES = (
 )  # fmt: skip
 
 
+# Practical questions answered from whichever passage covers them best.
+FACETS = {
+    "language": (
+        re.compile(r"\b(language|languages|speak|spoken|dialect|dialects|lingua franca)\b", re.I),
+        re.compile(r"\b(language|languages|spoken|speak|lingua franca|dialect)\b", re.I),
+    ),
+    "climate": (
+        re.compile(
+            r"\b(weather|climate|rainy|rains?|dry season|wet season|seasons?|harmattan|temperatures?|"
+            r"humid|humidity|best time (to|for) (visit|go|travel)|when (should|to) (i )?(visit|go))\b",
+            re.I,
+        ),
+        re.compile(
+            r"\b(climate|rainy season|dry season|wet season|harmattan|rainfall|temperatures?|"
+            r"humid|humidity|best time to visit|rains)\b",
+            re.I,
+        ),
+    ),
+}
+LIVE = re.compile(
+    r"\b(today|tonight|tomorrow|right now|currently|this (week|weekend|month)|forecast|at the moment)\b",
+    re.I,
+)
+
+
+REGION_WORDS = {
+    "central", "north", "northern", "south", "southern", "east", "eastern", "west", "western",
+    "coast", "coastal", "region", "plain", "plateau", "delta", "highlands", "savannah",
+    "upper", "lower", "interior", "sahel",
+}  # fmt: skip
+
+
+def is_region_guide(destination: Destination) -> bool:
+    """A Wikivoyage guide to a region or country rather than to a single site."""
+    return (
+        destination.source == "wikivoyage"
+        and destination.theme == "Town or Area Guide"
+        and bool(set(destination.name_tokens) & (REGION_WORDS | COUNTRIES))
+    )
+
+
+def distance_km(a: Destination, b: Destination) -> float:
+    lat1, lon1, lat2, lon2 = map(math.radians, (a.latitude, a.longitude, b.latitude, b.longitude))
+    h = (
+        math.sin((lat2 - lat1) / 2) ** 2
+        + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2
+    )
+    return 2 * 6371 * math.asin(math.sqrt(h))
+
+
+def question_facet(message: str) -> str | None:
+    for facet, (question, _) in FACETS.items():
+        if question.search(message):
+            return facet
+    return None
+
+
+def facet_coverage(destination: Destination, facet: str) -> int:
+    return len(FACETS[facet][1].findall(destination.passage))
+
+
 MAX_DESCRIPTION_CHARS = 5000  # keeps prompt plus answer within the model's context
 
 
@@ -278,10 +339,13 @@ class Destination:
 class Route:
     """How to answer one message."""
 
-    kind: str  # answer | choose | recommend | out_of_scope | greeting | thanks | reset | not_found
+    kind: str  # answer | fact | fact_missing | which_place | choose | recommend
+    #             out_of_scope | live | greeting | thanks | reset | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
     new_topic: bool = False
+    facet: str | None = None  # for "fact" and "fact_missing": language or climate
+    place: str = ""  # for "fact_missing": the country or place asked about
 
 
 class PassageIndex:
@@ -484,6 +548,41 @@ class Router:
                 break
         return picks
 
+    def best_for_facet(
+        self, facet: str, country: str | None, place: Destination | None = None
+    ) -> Destination | None:
+        """The best passage for a practical question (language, climate).
+
+        Uses the place itself if it covers the question; otherwise the nearest
+        passage that does (within 150 km); otherwise the country's regional travel
+        guides, which describe language and climate for a whole region.
+        """
+        if place and facet_coverage(place, facet):
+            return place
+        if not country:
+            return None
+        pool = [
+            d
+            for d in self.index.destinations
+            if country.split()[0] in normalise(d.country)
+            and facet_coverage(d, facet)
+            and not is_person(d)
+        ]
+        if not pool:
+            return None
+        if place and place.latitude is not None:
+            nearby = [
+                (distance_km(place, d), d)
+                for d in pool
+                if d.latitude is not None and distance_km(place, d) <= 150
+            ]
+            if nearby:
+                return min(nearby, key=lambda x: x[0])[1]
+        return max(
+            pool,
+            key=lambda d: (is_region_guide(d), facet_coverage(d, facet), len(d.passage)),
+        )
+
     def route(self, message: str, topic: Destination | None, pending: list[Destination]) -> Route:
         text = message.strip()
 
@@ -503,6 +602,26 @@ class Router:
                 return Route("greeting")
             if THANKS.search(text):
                 return Route("thanks")
+
+        facet = question_facet(text)
+        if facet:
+            if facet == "climate" and LIVE.search(text):
+                return Route("live")
+            names = self.index.match_names(text)
+            named = names[0] if len(names) == 1 else None
+            country = mentioned_country(text)
+            place = named or (topic if not country else None)
+            if not country and place and place.country:
+                country = normalise(place.country)
+            if not country and not place:
+                return Route("which_place", facet=facet)
+            best = self.best_for_facet(facet, country, place)
+            if best is None:
+                where = (place.name if place else None) or (country or "").title()
+                return Route("fact_missing", facet=facet, place=where)
+            if topic and best == topic:
+                return Route("answer", topic)
+            return Route("fact", best, facet=facet)
 
         if topic and REFERS_BACK.search(text):
             return Route("answer", topic)  # "it", "there": a follow-up on the current place

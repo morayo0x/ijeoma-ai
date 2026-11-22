@@ -69,6 +69,8 @@ EXAMPLES = [
 ]
 
 
+FACET_TEXT = {"language": "the languages spoken", "climate": "the weather and seasons"}
+
 SUMMARY_STYLE_KEYS = {
     "one_line": "One sentence",
     "notable": "What makes it notable",
@@ -159,6 +161,24 @@ def build_app(model, router: Router) -> gr.Blocks:
             state["pending"] = [d.passage_id for d in route.choices]
             options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
             return f"I found a few places that might match:\n\n{options}\n\nReply with a number or a name."
+        if route.kind == "live":
+            return (
+                "I don't have live weather. For today's conditions or a forecast, please check "
+                "a weather service. I can tell you about the usual climate and seasons of a place."
+            )
+        if route.kind == "which_place":
+            return f"Which country or place would you like to know {FACET_TEXT[route.facet]} for?"
+        if route.kind == "fact_missing":
+            return (
+                f"My sources don't describe {FACET_TEXT[route.facet]} for {route.place}. "
+                "Try asking about a nearby town or region."
+            )
+        if route.kind == "fact":
+            # Answered from the passage that covers the question best; the current
+            # destination is kept, so the conversation can carry on about it.
+            source = route.destination
+            answer, _ = model.generate(prompts.answer(message, source.passage))
+            return f"From the guide to **{source.name}**: {answer}\n\n<sub>{footer(source)}</sub>"
         if route.kind == "out_of_scope":
             answer, _ = model.generate(prompts.answer(message, ""))
             # The model was trained to decline these; fall back to a fixed reply if it does not.
