@@ -1,5 +1,11 @@
 # Ijeoma AI
 
+<p align="center">
+  <a href="https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open the chat in Colab" height="28"></a>
+  <br><strong>Try the chat:</strong> open in Colab, choose a T4 GPU, add your <code>HF_TOKEN</code> secret, then Runtime → Run all.
+  <br>Short link: <a href="https://morayo0x.github.io/ijeoma-ai/chat">morayo0x.github.io/ijeoma-ai/chat</a>
+</p>
+
 Ijeoma AI is a grounded question-answering and summarisation model for West
 African destinations. It is Gemma 3 1B instruction-tuned, fine-tuned with LoRA
 to perform three tasks on a passage describing a place:
