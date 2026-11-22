@@ -219,13 +219,30 @@ Status values: `active` · `superseded by D-nn` · `open`.
   per passage would meet the commitment in a rebuild.
 - **Status:** active
 
+## D-18 · Base model is Gemma 3 1B, not Gemma 4 E4B
+- **Date:** confirmed by the team 22 Nov 2026 (already the target in the
+  14 Nov Dataset Assessment doc)
+- **Decision:** Fine-tune Gemma 3 1B instruction-tuned (`gemma-3-1b-it`) with
+  LoRA, as the team intended, rather than Gemma 4 E4B with QLoRA as written in
+  the submitted proposal (§4).
+- **Why:** Team decision. *Reason to fill in for the report.* Supporting
+  facts from the runs: LoRA on the 1B model fits a free Colab T4 in full
+  precision (1.3M trainable parameters, 0.13%) with no 4-bit quantisation
+  needed, and the proposal's own environmental commitment is to "use the
+  smallest Gemma variant that clears our evaluation targets".
+- **Trade-off:** A smaller model has less capacity for the reading and
+  reformulation tasks; the invention rate without a passage (0.95, D-07) is
+  partly a function of size. Plain LoRA instead of QLoRA is a consequence of
+  the smaller model, not a separate choice.
+- **Status:** active
+
 ---
 
 ## Known gaps against the submitted proposal (for the Limitations section)
 
 | Submitted proposal says | What we did | Entry |
 |---|---|---|
-| Gemma 4 E4B with QLoRA | Gemma 3 1B, plain LoRA in Keras/JAX, full precision | open: reason to confirm with the team |
+| Gemma 4 E4B with QLoRA | Gemma 3 1B (team decision), plain LoRA in Keras/JAX, full precision | D-18 |
 | No external retrieval (§1) / retrieval grounding (§7) | Passage supplied in every prompt | D-02, D-15 |
 | 90% of claims supported by the source | Now measured as `claims_supported_rate` | D-16 |
 | Text, images and tabular data | Text only | open |
