@@ -273,3 +273,18 @@ Status values: `active` · `superseded by D-nn` · `open`.
 - **Evidence:** <file, metric or run>
 - **Status:** active | superseded by D-nn | open
 ```
+
+---
+
+## D-19 · Move the project to Usman's Drive folder "Ijeoma"
+- **Date:** 22 Nov 2026
+- **Decision:** Training data and notebook now live in the folder "Ijeoma"
+  (Usman Kolawole's My Drive), replacing "Google Deep mind/Google Deepmind Tour
+  Guide IJEOMA". Notebook v0.3 finds the folder automatically under
+  `/content/drive/MyDrive` (directly, or via a shortcut up to two levels deep)
+  and stops with a clear message if it is missing.
+- **Why:** Team moved the working folder. Hard-coding one person's path breaks
+  the notebook for every other team member.
+- **Note:** v0.3 is v0.2 plus this path change only. The earlier experiment log
+  stays in `results/`; the new folder starts a fresh `ijeoma_experiment_log.csv`.
+- **Status:** active
