@@ -40,6 +40,7 @@ GENERIC = COUNTRIES | {
     "district", "grove", "sacred", "gallery", "university", "stadium", "zoo", "garden",
     "gardens", "botanical", "mount", "mountain", "lagoon", "bay", "old", "new", "great",
     "royal", "historic", "colonial", "slave", "museu", "musee", "parc", "praia", "monte",
+    "history", "heritage", "culture", "cultural",
 }  # fmt: skip
 
 OUT_OF_SCOPE = re.compile(
@@ -48,20 +49,64 @@ OUT_OF_SCOPE = re.compile(
     re.I,
 )
 REFERS_BACK = re.compile(r"\b(it|its|it's|there|here|this place|that place|the place)\b", re.I)
-GREETING = re.compile(
-    r"^\s*(hi|hello|hey|good (morning|afternoon|evening)|thanks?|thank you)\b", re.I
-)
+GREETING = re.compile(r"^\s*(hi|hello|hey|good (morning|afternoon|evening))\b", re.I)
+THANKS = re.compile(r"\b(thanks?|thank you|cheers|bye|goodbye)\b", re.I)
 
 # Common words that may be absent from the passages but are not place names.
 QUERY_WORDS = {
     "tell", "about", "what", "whats", "where", "when", "which", "who", "how", "why", "is",
     "are", "was", "were", "can", "could", "would", "should", "do", "does", "did", "me", "my",
-    "i", "you", "your", "please", "visit", "visiting", "see", "go", "going", "know", "show",
+    "i", "you", "your", "please", "from", "by", "visit", "visiting", "see", "go", "going", "know", "show",
     "any", "some", "there", "here", "it", "its", "this", "that", "in", "at", "to", "for",
     "with", "on", "near", "around", "best", "good", "nice", "interesting", "places", "place",
     "things", "thing", "recommend", "suggest", "want", "like", "travel", "trip", "tourist",
     "tourists", "attractions", "attraction", "destinations", "destination", "anything",
+    "oh", "ok", "okay", "cool", "great", "wow", "yes", "no", "sure", "more", "also",
+    "else", "other", "another", "really", "very", "much", "lot", "lots", "sounds", "the",
+    "a", "an", "and", "or", "but", "so", "then", "thats", "that's", "be", "of",
 }  # fmt: skip
+
+RECOMMEND = re.compile(
+    r"\b(interesting|recommend\w*|suggest\w*|best|top|must[- ]see|worth (visiting|seeing)|"
+    r"where (should|can|could) i (go|travel|visit|see)|places to (visit|go|see)|things to (do|see)|"
+    r"what (should|can) i (see|do|visit)|destinations|attractions|ideas)\b",
+    re.I,
+)
+
+# Words in a request mapped to the dataset's theme labels.
+THEME_KEYWORDS = {
+    "Coast & Beach": ("beach", "beaches", "coast", "coastal", "sea", "seaside", "ocean"),
+    "Nature & Wildlife": (
+        "nature", "wildlife", "animals", "safari", "forest", "forests", "birds",
+        "birdwatching", "national park", "national parks", "rainforest", "elephants",
+    ),
+    "Landscape & Scenery": (
+        "waterfall", "waterfalls", "mountain", "mountains", "hills", "scenery", "landscape",
+        "views", "hiking", "lake", "lakes",
+    ),
+    "Museum & Gallery": ("museum", "museums", "gallery", "galleries", "art"),
+    "Fort & Castle": ("fort", "forts", "castle", "castles", "slave trade"),
+    "Historic Site": ("history", "historic", "historical", "heritage", "old town"),
+    "Archaeological Site": ("ruins", "archaeology", "archaeological", "ancient"),
+    "Monument & Memorial": ("monument", "monuments", "memorial"),
+    "Palace & Royal Site": ("palace", "palaces", "royal", "kings", "kingdom"),
+    "Sacred & Ceremonial": ("sacred", "shrine", "shrines", "spiritual", "religious", "mosque", "mosques", "grove"),
+    "Family & Leisure": ("family", "kids", "children", "amusement", "leisure"),
+    "Town or Area Guide": ("city", "cities", "town", "towns"),
+}  # fmt: skip
+THEME_GROUPS = {
+    "history": ("Historic Site", "Fort & Castle", "Archaeological Site", "Monument & Memorial", "Palace & Royal Site"),
+    "culture": ("Sacred & Ceremonial", "Museum & Gallery", "Palace & Royal Site", "Historic Site"),
+}  # fmt: skip
+PERSON = re.compile(
+    r"\bwas an? [\w\s\"-]{0,40}\b(woman|man|women|merchant|trader|signare|signara|"
+    r"businesswoman|businessperson|slaver|historian|businessman|ruler|queen|king)\b"
+    # Lifespan right after the name, then "was": "X (c. 1615 – after 1670) was ..."
+    r"|^[^.(]{0,80}\((c\.\s*)?\d{3,4}\s*[–-][^)]*\),?\s+(was|is)\b"
+    r"|^[^.(]{0,80}\(\s*[bd]\.[^)]*\),?\s+(was|is)\b"
+    r"|^\w+s were [\w\s-]{0,40}\bwomen\b",
+    re.I,
+)
 
 SOURCE_LABELS = {"wikipedia": "Wikipedia", "wikivoyage": "Wikivoyage", "osm": "OpenStreetMap"}
 
@@ -84,6 +129,8 @@ class Destination:
     source: str
     url: str
     passage: str
+    theme: str = ""
+    world_heritage: bool = False
     name_tokens: tuple[str, ...] = ()
     distinctive: frozenset[str] = frozenset()
 
@@ -101,7 +148,7 @@ class Destination:
 class Route:
     """How to answer one message."""
 
-    kind: str  # "answer" | "choose" | "out_of_scope" | "greeting" | "not_found"
+    kind: str  # answer | choose | recommend | out_of_scope | greeting | thanks | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
     new_topic: bool = False
@@ -131,9 +178,10 @@ class PassageIndex:
                 else:
                     country = str(r["country"])
                 name_toks = tuple(tokens(r["name"]))
-                distinctive = frozenset(t for t in name_toks if t not in GENERIC) or frozenset(
-                    name_toks
-                )
+                # Words that identify the place; generic and common words never count alone.
+                distinctive = frozenset(
+                    t for t in name_toks if t not in GENERIC and t not in QUERY_WORDS
+                ) or frozenset(name_toks)
                 destinations.append(
                     Destination(
                         passage_id=r["passage_id"],
@@ -142,6 +190,8 @@ class PassageIndex:
                         source=str(r.get("source") or ""),
                         url=str(r.get("url") or ""),
                         passage=r["passage"],
+                        theme=str(r.get("theme") or ""),
+                        world_heritage=str(r.get("world_heritage")) == "True",
                         name_tokens=name_toks,
                         distinctive=distinctive,
                     )
@@ -151,12 +201,23 @@ class PassageIndex:
     def match_names(self, message: str) -> list[Destination]:
         """Destinations whose distinctive name words all appear in the message, best first."""
         msg = set(tokens(message))
+        # Words written with a capital letter after the first word: deliberate names.
+        capitalised = {
+            t for w in re.findall(r"\S+", message)[1:] if w[:1].isupper() for t in tokens(w)
+        }
+        whole_message_is_name = len(msg) <= 3
         scored = []
         for d in self.destinations:
             if not d.distinctive or not d.distinctive <= msg:
                 continue
-            if all(len(t) < 3 for t in d.distinctive) and len(msg) > 2:
-                continue  # very short names ("Bo") only count when they are the whole message
+            # Short names ("Oba", "Ada", "OH") collide with everyday words, so they count
+            # only when capitalised mid-sentence or when the message is little more than the name.
+            if (
+                all(len(t) <= 3 for t in d.distinctive)
+                and not whole_message_is_name
+                and not d.distinctive <= capitalised
+            ):
+                continue
             matched = sum(t in msg for t in d.name_tokens)
             full = matched == len(d.name_tokens)
             scored.append(((matched, full, -len(d.name_tokens)), d))
@@ -200,6 +261,25 @@ def proper_nouns(message: str) -> set[str]:
     return found
 
 
+def requested_themes(message: str) -> set[str]:
+    msg = normalise(message)
+    themes = {
+        theme
+        for theme, words in THEME_KEYWORDS.items()
+        if any(re.search(rf"\b{re.escape(w)}\b", msg) for w in words)
+    }
+    for word, group in (("culture", "culture"), ("cultural", "culture")):
+        if re.search(rf"\b{word}\b", msg):
+            themes.update(THEME_GROUPS[group])
+    if themes & {"Historic Site"}:
+        themes.update(THEME_GROUPS["history"])
+    return themes
+
+
+def is_person(destination: Destination) -> bool:
+    return bool(PERSON.search(destination.passage[:300]))
+
+
 def mentioned_country(message: str) -> str | None:
     msg = normalise(message)
     for name in (
@@ -218,6 +298,28 @@ class Router:
     def __init__(self, index: PassageIndex, min_search_score: float = 6.0):
         self.index = index
         self.min_search_score = min_search_score
+        self._places = [d for d in index.destinations if not is_person(d) and len(d.passage) >= 600]
+
+    def recommend(self, country: str | None, themes: set[str], k: int = 5) -> list[Destination]:
+        """Notable destinations for a country and/or themes; World Heritage sites first."""
+        pool = self._places
+        if country:
+            pool = [d for d in pool if country.split()[0] in normalise(d.country)]
+        if themes:
+            pool = [d for d in pool if d.theme in themes]
+        elif not country:
+            pool = [d for d in pool if d.theme != "Town or Area Guide"]
+        ranked = sorted(pool, key=lambda d: (d.world_heritage, len(d.passage)), reverse=True)
+        if country:
+            return ranked[:k]
+        picks, seen = [], set()  # one per country, for a spread across the region
+        for d in ranked:
+            if d.country not in seen:
+                picks.append(d)
+                seen.add(d.country)
+            if len(picks) == k:
+                break
+        return picks
 
     def route(self, message: str, topic: Destination | None, pending: list[Destination]) -> Route:
         text = message.strip()
@@ -230,8 +332,11 @@ class Router:
                 if d.distinctive <= set(tokens(text)):
                     return Route("answer", d, new_topic=True)
 
-        if GREETING.match(text) and len(tokens(text)) <= 4:
-            return Route("greeting")
+        if len(tokens(text)) <= 4:
+            if GREETING.match(text):
+                return Route("greeting")
+            if THANKS.search(text):
+                return Route("thanks")
 
         if topic and REFERS_BACK.search(text):
             return Route("answer", topic)  # "it", "there": a follow-up on the current place
@@ -250,14 +355,24 @@ class Router:
         topic_words = set(tokens(f"{topic.name} {topic.passage}")) if topic else set()
         new_country = bool(country and topic and country not in normalise(topic.country))
         new_place = bool(named - topic_words)
-        if topic and not new_country and not new_place:
-            return Route("answer", topic)
-
         if OUT_OF_SCOPE.search(text):
             return Route("out_of_scope")
 
+        themes = requested_themes(text)
+        if RECOMMEND.search(text) or (themes and not new_place and (not topic or new_country)):
+            if not country and topic and not themes:
+                country = normalise(topic.country)  # "anything else interesting?" near here
+            picks = self.recommend(country, themes)
+            if picks:
+                return Route("recommend", choices=picks)
+
+        if topic and not new_country and not new_place:
+            return Route("answer", topic)
+
         if self.index.unknown_words(text):
             return Route("not_found")
+        if not [t for t in tokens(text) if t not in QUERY_WORDS and len(t) >= 3]:
+            return Route("not_found")  # small talk with nothing to search for
 
         hits = [d for s, d in self.index.search(text, k=20) if s >= self.min_search_score]
         if named:

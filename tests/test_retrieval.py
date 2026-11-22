@@ -105,3 +105,53 @@ def test_new_place_leaves_topic(router, kakum, message, expected_kind):
 
 def test_greeting(router):
     assert router.route("hello", None, []).kind == "greeting"
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Where are interesting destinations to visit?",
+        "What are the top attractions?",
+        "Where can I learn about history?",
+    ],
+)
+def test_general_questions_recommend_a_spread(router, message):
+    route = router.route(message, None, [])
+    assert route.kind == "recommend"
+    assert len({d.country for d in route.choices}) == len(route.choices) >= 3
+
+
+def test_recommendations_respect_country_and_theme(router):
+    route = router.route("Where can I see wildlife in Ghana?", None, [])
+    assert route.kind == "recommend"
+    assert all(d.country == "Ghana" and d.theme == "Nature & Wildlife" for d in route.choices)
+
+
+def test_recommendations_exclude_people(router):
+    route = router.route("Recommend some places in Senegal", None, [])
+    names = {d.name for d in route.choices}
+    assert not names & {"Anne Pépin", "Signare", "Caty Louette", "Victoria Albis"}
+
+
+def test_anything_else_nearby_uses_current_country(router, kakum):
+    route = router.route("What else is interesting nearby?", kakum, [])
+    assert route.kind == "recommend"
+    assert all(d.country == "Ghana" for d in route.choices)
+
+
+def test_short_names_need_deliberate_mention(router):
+    assert router.route("oh nice, tell me more", None, []).kind == "not_found"
+    route = router.route("Tell me about Bia National Park", None, [])
+    assert route.kind == "answer" and route.destination.name == "Bia National Park"
+
+
+@pytest.mark.parametrize("message", ["thanks", "ok thanks", "thank you!", "bye"])
+def test_thanks(router, message):
+    assert router.route(message, None, []).kind == "thanks"
+
+
+def test_recommendation_mid_conversation_switches_country(router):
+    sukur = router.route("Tell me about Sukur", None, []).destination
+    route = router.route("Where can I see wildlife in Ghana?", sukur, [])
+    assert route.kind == "recommend"
+    assert all(d.country == "Ghana" and d.theme == "Nature & Wildlife" for d in route.choices)

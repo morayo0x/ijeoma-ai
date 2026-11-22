@@ -229,9 +229,11 @@ byte. To start from the raw records, run `ijeoma_clean.py` first (see
 ### Chat
 
 A single chat window for end users. Each question is routed to a destination
-passage before the model answers: by place name, by keyword search for broad
-requests (offering numbered choices), or kept on the current destination for
-follow-up questions. Places that are not in the corpus are reported as not
+passage before the model answers: by place name; by recommendation for general
+requests ("where should I visit in Ghana?", "somewhere for wildlife"), ranked by
+UNESCO World Heritage status and theme; by keyword search for other broad
+requests; or kept on the current destination for follow-up questions. Lists are
+offered as numbered choices. Places that are not in the corpus are reported as not
 found rather than guessed, visa, safety and similar questions are declined, and
 every answer cites its source. Launch it on Colab with
 [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with

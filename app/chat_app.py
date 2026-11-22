@@ -34,7 +34,7 @@ MAX_HISTORY = 3  # previous exchanges passed to the model; training used up to t
 WELCOME = (
     "Hello! I'm **Ijeoma**, a guide to places to visit in West Africa. Ask me about "
     "a town, park, museum or historic site, for example *Kakum National Park*, "
-    "*Sukur* or *Elmina Castle*, or ask something broader like *beaches in Senegal*."
+    "*Sukur* or *Elmina Castle*, or ask for ideas, like *where should I visit in Ghana?*"
 )
 NOT_FOUND = (
     "I couldn't find that place among the West African destinations I know about. "
@@ -54,7 +54,7 @@ NOTICE = (
 EXAMPLES = [
     "Tell me about Kakum National Park",
     "What is Sukur known for?",
-    "Beaches in Senegal",
+    "Where should I visit in Ghana?",
     "Do I need a visa for Ghana?",
 ]
 
@@ -74,8 +74,18 @@ def build_app(model, router: Router) -> gr.Blocks:
 
         if route.kind == "greeting":
             return WELCOME
+        if route.kind == "thanks":
+            return "You're welcome! Ask me about another place whenever you like."
         if route.kind == "not_found":
             return NOT_FOUND
+        if route.kind == "recommend":
+            state["pending"] = [d.passage_id for d in route.choices]
+            options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
+            return (
+                f"Here are some places worth exploring:\n\n{options}\n\n"
+                "Reply with a number or a name to hear more, or ask about a country or a "
+                "kind of place (beaches, wildlife, history, museums)."
+            )
         if route.kind == "choose":
             state["pending"] = [d.passage_id for d in route.choices]
             options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
