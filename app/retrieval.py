@@ -27,7 +27,8 @@ COUNTRIES = {
     "benin", "burkina", "faso", "cape", "verde", "cabo", "ivoire", "cote", "gambia",
     "ghana", "guinea", "bissau", "liberia", "mali", "mauritania", "niger", "nigeria",
     "senegal", "sierra", "leone", "togo", "africa", "african", "west",
-    "nigerian", "ghanaian", "senegalese", "malian", "beninese", "togolese",
+    "nigerian", "ghanaian", "senegalese", "malian", "beninese", "togolese", "ivory",
+    "ivorian", "gambian", "liberian", "guinean", "mauritanian", "nigerien", "burkinabe",
 }  # fmt: skip
 
 GENERIC = COUNTRIES | {
@@ -66,6 +67,11 @@ QUERY_WORDS = {
     "a", "an", "and", "or", "but", "so", "then", "thats", "that's", "be", "of",
 }  # fmt: skip
 
+ABOUT_COUNTRY = re.compile(
+    r"\b(tell me (about|more about)|what is|what's|describe|overview|introduc\w*|information|info|"
+    r"learn about|know about)\b",
+    re.I,
+)
 RECOMMEND = re.compile(
     r"\b(interesting|recommend\w*|suggest\w*|best|top|must[- ]see|worth (visiting|seeing)|"
     r"where (should|can|could) i (go|travel|visit|see)|places to (visit|go|see)|things to (do|see)|"
@@ -499,15 +505,79 @@ def mentioned_country(message: str) -> str | None:
         "ghana", "guinea", "liberia", "mali", "mauritania", "nigeria", "niger", "senegal", "togo",
     ):  # fmt: skip
         if re.search(rf"\b{re.escape(name)}\b", msg):
-            return name
+            return COUNTRY_ALIASES.get(name, name)
     return None
+
+
+def in_country(destination: Destination, country: str) -> bool:
+    """Exact country match; handles cross-border places listed under several countries."""
+    parts = re.split(r"\s*[;/]\s*", normalise(destination.country))
+    return normalise(country).removeprefix("the ") in {
+        p.strip().removeprefix("the ") for p in parts
+    }
+
+
+COUNTRY_PATTERN = re.compile(
+    r"\b(burkina faso|cape verde|cabo verde|cote d'ivoire|ivory coast|guinea-bissau|"
+    r"guinea bissau|sierra leone|the gambia|gambia|benin|ghana|guinea|liberia|mali|"
+    r"mauritania|nigeria|niger|senegal|togo)\b"
+)
+ABOUT_WORDS = {
+    "tell", "more", "about", "what", "whats", "is", "like", "describe", "overview", "introduce",
+    "introduction", "information", "info", "learn", "know", "the", "country", "me", "i", "want",
+    "to", "a", "an", "of", "on", "please", "can", "you", "would",
+}  # fmt: skip
+
+
+def only_country_named(message: str) -> bool:
+    """True when the message asks about a country and names nothing more specific."""
+    rest = COUNTRY_PATTERN.sub(" ", normalise(message))
+    return not [t for t in tokens(rest) if t not in ABOUT_WORDS]
+
+
+COUNTRY_ALIASES = {
+    "cabo verde": "cape verde",
+    "ivory coast": "cote d'ivoire",
+    "guinea bissau": "guinea-bissau",
+    "the gambia": "gambia",
+}
+
+
+def load_country_guides(path: str | Path) -> dict[tuple[str, str], Destination]:
+    """Country-level passages keyed by (normalised country, facet)."""
+    guides = {}
+    path = Path(path)
+    if not path.exists():
+        return guides
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            r = json.loads(line)
+            toks = tuple(tokens(r["name"]))
+            guides[(normalise(r["country"]).removeprefix("the "), r["facet"])] = Destination(
+                passage_id=r["passage_id"],
+                name=r["name"],
+                country=r["country"],
+                source=r["source"],
+                url=r["url"],
+                passage=r["passage"],
+                theme="Country Guide",
+                name_tokens=toks,
+                distinctive=frozenset(toks),
+            )
+    return guides
 
 
 class Router:
     """Decides, per message, which passage (if any) the model should answer from."""
 
-    def __init__(self, index: PassageIndex, min_search_score: float = 6.0):
+    def __init__(
+        self,
+        index: PassageIndex,
+        guides: dict[tuple[str, str], Destination] | None = None,
+        min_search_score: float = 6.0,
+    ):
         self.index = index
+        self.guides = guides or {}
         self.min_search_score = min_search_score
         self._places = [d for d in index.destinations if not is_person(d) and len(d.passage) >= 600]
 
@@ -521,7 +591,7 @@ class Router:
         """
         pool = self._places
         if country:
-            pool = [d for d in pool if country.split()[0] in normalise(d.country)]
+            pool = [d for d in pool if in_country(d, country)]
         if subjects:
             pool = [d for d in pool if mentions_subject(d, subjects)]
         elif themes:
@@ -548,25 +618,31 @@ class Router:
                 break
         return picks
 
+    def guide(self, country: str | None, facet: str) -> Destination | None:
+        if not country:
+            return None
+        return self.guides.get((normalise(country).removeprefix("the "), facet))
+
     def best_for_facet(
         self, facet: str, country: str | None, place: Destination | None = None
     ) -> Destination | None:
         """The best passage for a practical question (language, climate).
 
-        Uses the place itself if it covers the question; otherwise the nearest
-        passage that does (within 150 km); otherwise the country's regional travel
-        guides, which describe language and climate for a whole region.
+        Uses the place itself if it covers the question; otherwise the country's
+        Wikivoyage guide; otherwise the nearest passage that does (within 150 km);
+        otherwise the country's regional travel guides.
         """
-        if place and facet_coverage(place, facet):
+        is_guide = bool(place) and place.passage_id.startswith("country-")
+        if place and not is_guide and facet_coverage(place, facet):
             return place
         if not country:
             return None
+        if guide := self.guide(country, facet):
+            return guide
         pool = [
             d
             for d in self.index.destinations
-            if country.split()[0] in normalise(d.country)
-            and facet_coverage(d, facet)
-            and not is_person(d)
+            if in_country(d, country) and facet_coverage(d, facet) and not is_person(d)
         ]
         if not pool:
             return None
@@ -626,6 +702,11 @@ class Router:
         if topic and REFERS_BACK.search(text):
             return Route("answer", topic)  # "it", "there": a follow-up on the current place
 
+        country = mentioned_country(text)
+        overview = self.guide(country, "overview")
+        if overview and ABOUT_COUNTRY.search(text) and only_country_named(text):
+            return Route("answer", overview, new_topic=True)
+
         names = self.index.match_names(text)
         if names:
             passage_words = set(tokens(topic.passage)) if topic else set()
@@ -638,13 +719,21 @@ class Router:
         country = mentioned_country(text)
         named = proper_nouns(text)
         topic_words = set(tokens(f"{topic.name} {topic.passage}")) if topic else set()
-        new_country = bool(country and topic and country not in normalise(topic.country))
+        new_country = bool(country and topic and not in_country(topic, country))
         new_place = bool(named - topic_words)
         if OUT_OF_SCOPE.search(text):
             return Route("out_of_scope")
 
         themes = requested_themes(text)
         subjects = requested_subjects(text)
+        overview = self.guide(country, "overview")
+        if (
+            overview
+            and not (themes or subjects or new_place)
+            and not RECOMMEND.search(text)
+            and ABOUT_COUNTRY.search(text)
+        ):
+            return Route("answer", overview, new_topic=True)
         # A request for a kind of place replaces the current destination unless that
         # destination already matches it ("is there a waterfall?" about a falls).
         topic_matches = bool(topic) and (
@@ -676,7 +765,7 @@ class Router:
             # The user named a specific place: only accept destinations bearing that name.
             hits = [d for d in hits if named & set(d.name_tokens)]
         if country:
-            hits = [d for d in hits if country.split()[0] in normalise(d.country)] or hits
+            hits = [d for d in hits if in_country(d, country)] or hits
         hits = hits[:3]
         if len(hits) == 1:
             return Route("answer", hits[0], new_topic=True)

@@ -31,11 +31,13 @@ from retrieval import (  # noqa: E402
     Router,
     answer_style,
     describe_custom,
+    load_country_guides,
     looks_like_description,
 )
 
 DEFAULT_ADAPTER = APP_DIR.parent / "models" / "ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz"
 DEFAULT_PASSAGES = APP_DIR.parent / "pipeline" / "out" / "passages.jsonl"
+DEFAULT_GUIDES = APP_DIR.parent / "pipeline" / "out" / "country_guides.jsonl"
 DEFAULT_PRESET = "hf://google/gemma-3-1b-it"
 MAX_HISTORY = 3  # previous exchanges passed to the model; training used up to two
 
@@ -124,6 +126,7 @@ def new_state() -> dict:
 
 def build_app(model, router: Router) -> gr.Blocks:
     by_id = {d.passage_id: d for d in router.index.destinations}
+    by_id.update({d.passage_id: d for d in router.guides.values()})
 
     def current_topic(state: dict) -> Destination | None:
         if state["topic"] == "custom" and state["custom"]:
@@ -283,7 +286,7 @@ def main() -> None:
     parser.add_argument("--stub", action="store_true", help="run without a model")
     args = parser.parse_args()
 
-    router = Router(PassageIndex.from_jsonl(args.passages))
+    router = Router(PassageIndex.from_jsonl(args.passages), load_country_guides(args.guides))
     if args.stub:
         from model import StubModel
 

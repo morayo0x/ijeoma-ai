@@ -13,6 +13,7 @@ from retrieval import (  # noqa: E402
     Router,
     answer_style,
     describe_custom,
+    load_country_guides,
     looks_like_description,
 )
 
@@ -307,3 +308,45 @@ def test_facet_uses_the_place_itself_when_it_covers_it(router):
 
 def test_best_time_is_not_a_recommendation(router, kakum):
     assert router.route("When is the best time to visit?", kakum, []).kind == "fact"
+
+
+@pytest.fixture(scope="module")
+def guided():
+    return Router(
+        PassageIndex.from_jsonl(ROOT / "pipeline" / "out" / "passages.jsonl"),
+        load_country_guides(ROOT / "pipeline" / "out" / "country_guides.jsonl"),
+    )
+
+
+@pytest.mark.parametrize(
+    ("message", "passage_id"),
+    [
+        ("Tell me about Ghana", "country-ghana-overview"),
+        ("Tell me about the Ivory Coast", "country-cote-d-ivoire-overview"),
+        ("Tell me about Guinea-Bissau", "country-guinea-bissau-overview"),
+        ("What language do they speak in Mali?", "country-mali-language"),
+        ("What language is spoken in Liberia?", "country-liberia-language"),
+        ("When is the rainy season in Nigeria?", "country-nigeria-climate"),
+    ],
+)
+def test_country_questions_use_country_guides(guided, message, passage_id):
+    assert guided.route(message, None, []).destination.passage_id == passage_id
+
+
+@pytest.mark.parametrize(
+    ("message", "name"),
+    [("Tell me about Bissau", "Bissau"), ("Tell me about Cape Coast", "Cape Coast")],
+)
+def test_cities_named_like_countries_still_resolve(guided, message, name):
+    assert guided.route(message, None, []).destination.name == name
+
+
+def test_niger_is_not_nigeria(guided):
+    route = guided.route("What is the weather like in Niger?", None, [])
+    assert route.destination.country == "Niger"
+
+
+def test_place_without_facet_uses_its_country_guide(guided):
+    kakum = guided.route("Tell me about Kakum National Park", None, []).destination
+    route = guided.route("What language do they speak there?", kakum, [])
+    assert route.kind == "fact" and route.destination.passage_id == "country-ghana-language"

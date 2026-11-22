@@ -243,7 +243,10 @@ summarised, and later questions are answered from that description. Questions
 about languages or climate are answered from the destination's passage if it
 covers them, otherwise from the nearest passage that does (within 150 km) or the
 country's regional guide, and the reply names that source; requests for current
-weather are declined. Places that are not in the corpus are reported as not
+weather are declined. Country-level questions ("tell me about Ghana", "what
+languages are spoken in Mali?") are answered from Wikivoyage country guides
+(`pipeline/out/country_guides.jsonl`, fetched with `pipeline/fetch_country_guides.py`),
+which are used only by the chat and are not part of the training or test data. Places that are not in the corpus are reported as not
 found rather than guessed, visa, safety and similar questions are declined, and
 every answer cites its source. Launch it on Colab with
 [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with
