@@ -187,6 +187,11 @@ def build_app(model, router: Router) -> gr.Blocks:
         pending = [by_id[i] for i in state["pending"]]
         route = router.route(message, topic, pending)
 
+        if route.kind == "ask_name":
+            name = state.get("user_name")
+            if name:
+                return f"Yes, you're **{name}**. What would you like to know about West Africa?"
+            return "You haven't told me your name yet. What should I call you?"
         if route.kind == "introduce":
             state["user_name"] = route.place
             return (

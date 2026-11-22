@@ -593,3 +593,28 @@ def test_distance_between_list_items(router, ruins):
 
 def test_which_one_is_not_a_list_reference(router, ruins):
     assert router.route("which one is the oldest?", None, ruins).kind != "compare"
+
+
+@pytest.mark.parametrize(
+    ("message", "name"),
+    [
+        ("my name is john hicks", "John Hicks"),
+        ("I'm Usman Kolawole", "Usman Kolawole"),
+        ("my name is Ada", "Ada"),
+    ],
+)
+def test_multi_word_and_place_like_names(router, message, name):
+    route = router.route(message, None, [])
+    assert route.kind == "introduce" and route.place == name
+
+
+@pytest.mark.parametrize(
+    "message", ["do you remember my name", "what's my name?", "Who am I?", "do you know me"]
+)
+def test_asking_for_my_name(router, kakum, message):
+    # Even mid-conversation about a place, this is about the user, not the place.
+    assert router.route(message, kakum, []).kind == "ask_name"
+
+
+def test_introduction_mid_conversation_is_not_a_follow_up(router, kakum):
+    assert router.route("my name is john hicks", kakum, []).kind == "introduce"

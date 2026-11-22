@@ -71,7 +71,12 @@ QUERY_WORDS = {
 
 INTRODUCTION = re.compile(
     r"^\s*(?:hi|hello|hey)?[,!.]?\s*(?:my name is|my name's|my name|call me|i am|i'm|im|this is)\s+"
-    r"([A-Za-zÀ-ÿ][\w'-]{1,30})\s*[.!]?\s*$",
+    r"([A-Za-zÀ-ÿ][\w'-]{1,30}(?:\s+[A-Za-zÀ-ÿ][\w'-]{1,30}){0,2})\s*[.!]?\s*$",
+    re.I,
+)
+ASK_NAME = re.compile(
+    r"\b(what'?s my name|what is my name|do you (remember|know|recall) (my name|me|who i am)|"
+    r"who am i|remember me|my name\?)",
     re.I,
 )
 DESCRIBE_EACH = re.compile(
@@ -533,7 +538,8 @@ class Destination:
 class Route:
     """How to answer one message."""
 
-    kind: str  # answer | fact | fact_missing | which_place | choose | recommend | describe_list | introduce
+    kind: str  # answer | fact | fact_missing | which_place | choose | recommend | describe_list
+    #             introduce | ask_name
     #             out_of_scope | live | greeting | thanks | reset | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
@@ -1061,9 +1067,15 @@ class Router:
         if RESET.search(text):
             return Route("reset")
 
+        if ASK_NAME.search(text):
+            return Route("ask_name")
         intro = INTRODUCTION.match(text)
-        if intro and not self.index.match_names(intro.group(1)):
-            return Route("introduce", place=intro.group(1).capitalize())
+        if intro and (
+            text.lower().startswith(("my name", "call me"))
+            or not self.index.match_names(intro.group(1))
+        ):
+            name = " ".join(w.capitalize() for w in intro.group(1).split())
+            return Route("introduce", place=name)
 
         describe = bool(DESCRIBE_EACH.search(text))
         refs = referenced_items(text, pending)
