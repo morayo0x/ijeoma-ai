@@ -177,20 +177,64 @@ Status values: `active` · `superseded by D-nn` · `open`.
 - **Not done:** readability scores (proposal §3).
 - **Status:** active
 
+## D-15 · The submitted proposal is the reference document
+- **Date:** 22 Nov 2026
+- **Decision:** Measure the build against `docs/capstone-proposal-ijeoma-ai_SUBMITTED.docx`
+  (Nigeria Cohort 1, submitted 1 Nov 2026 by John Hicks; team: Prof Chika
+  Yinka-Banjo, Usman Kolawole). The longer draft
+  (`docs/African_Tourism_Capstone_Proposal.docx`) is background only.
+- **Effect on earlier entries:** D-01's "five sub-regions" gap does not apply:
+  the submitted proposal is West Africa only. D-02 still stands, but note the
+  submitted proposal contradicts itself: §1 rules out external retrieval while
+  §7 names "retrieval grounding" as the main risk control. The
+  passage-in-prompt design is consistent with §7.
+- **Status:** active
+
+## D-16 · Measure the proposal's success criterion directly
+- **Date:** 22 Nov 2026
+- **Decision:** Add `claims_supported_rate` to the notebook: the LLM judge lists
+  every atomic factual claim in an answer or summary and marks whether the
+  source passage supports it; the rate is supported ÷ total across judged items.
+- **Why:** The submitted proposal's success criterion is "90% of the claims in
+  its answers and summaries are supported by the source passage", and its
+  metric list includes Factual Consistency. Nothing in the notebook measured
+  either. The existing `grounded` check only tests that numbers and proper
+  nouns appear in the passage.
+- **Validation:** Live test on one gold digest: 18/18 supported. The same digest
+  with an invented sentence ("built in 1652 by the Portuguese… jazz festival
+  every June"): 9/11, both invented claims flagged, accuracy score 5 → 1.
+- **Known weakness:** The judge sometimes merges two facts into one claim
+  (it counted "built in 1652 by the Portuguese" as one), so the rate slightly
+  flatters the model. Judged on 40 items per model: report it with that n.
+- **Status:** active
+
+## D-17 · Teacher calls: count met, "never twice" not met
+- **Date:** 22 Nov 2026
+- **Finding:** The submitted proposal commits to synthetic generation "once
+  over 800 to 1,200 passages… no passage reaches the teacher model twice".
+  The run covered 1,026 unique passages (within range) in 1,750 calls: 540
+  passages were sent once, 248 twice and 238 three times, because digest, QA
+  and dialogue were separate prompts.
+- **Decision:** Keep the data and report this honestly. A single combined prompt
+  per passage would meet the commitment in a rebuild.
+- **Status:** active
+
 ---
 
-## Known gaps against the proposal (for the Limitations section)
+## Known gaps against the submitted proposal (for the Limitations section)
 
-| Proposal says | What we did | Entry |
+| Submitted proposal says | What we did | Entry |
 |---|---|---|
-| No retrieval layer | Passage supplied in every prompt | D-02 |
-| Five African sub-regions | West Africa only | D-01 |
-| Gemini teacher | OpenAI `gpt-5.4-mini` teacher | D-10 |
-| QLoRA, 4-bit | Plain LoRA in Keras/JAX, full precision | open |
-| Abstractive summaries | Summarisation set is extractive; teacher digests are abstractive | open |
-| Readability scores | Not measured | D-14 |
-| Proposal theme names (Pre-Colonial History, Eco-Safari…) | 13 data-derived themes | D-03 |
-| Due 15 Nov | Submitted 22 Nov | — |
+| Gemma 4 E4B with QLoRA | Gemma 3 1B, plain LoRA in Keras/JAX, full precision | open: reason to confirm with the team |
+| No external retrieval (§1) / retrieval grounding (§7) | Passage supplied in every prompt | D-02, D-15 |
+| 90% of claims supported by the source | Now measured as `claims_supported_rate` | D-16 |
+| Text, images and tabular data | Text only | open |
+| Teacher once over 800–1,200 passages, never twice | 1,026 passages; 486 sent 2–3 times | D-17 |
+| 1 baseline + 3 hyperparameter runs | Smoke test (logged 3×) + full run | D-07, D-13 |
+| Hugging Face Space demo, Model Card, Data Card, error reporting, attribution | Not built yet | open |
+| Example labels "Sacred & Cultural Landscape", "Riverine forest" | "Sacred & Ceremonial", "Riverine" | D-03 |
+| Teacher model unspecified (draft: Gemini) | OpenAI `gpt-5.4-mini` | D-10 |
+| 3,500 examples | ~6,550 train + ~1,240 test | exceeded |
 
 ## Open questions
 - Nigeria is still ~22% of the test set; per-country scores for small countries are noisy.

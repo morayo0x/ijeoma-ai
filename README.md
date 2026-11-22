@@ -5,12 +5,12 @@ classify destinations, write traveller digests, and answer questions about them
 from a source passage, declining when the passage does not say.
 
 Capstone project for the Google DeepMind / FATE Foundation AI programme.
-The proposal is in `docs/`.
+The submitted proposal is `docs/capstone-proposal-ijeoma-ai_SUBMITTED.docx`.
 
 ## Layout
 
 ```
-docs/        proposal, DECISIONS.md (decision log)
+docs/        submitted proposal (+ earlier draft), DECISIONS.md (decision log)
 pipeline/    data build: clean -> template pairs -> teacher pairs -> split
   out/       built datasets (upload these to Drive for the notebook)
 notebooks/   train-and-evaluate notebook (Colab, T4, Keras + JAX)
@@ -48,7 +48,8 @@ passage as input, and the model is trained to read rather than recall.
   traveller-guide dialogues, each ending in an out-of-scope question.
 - Notebook v0.2: full-data run (1 epoch, adapter checkpointed to Drive every 500 steps, 100 eval items) and the
   proposal's remaining metrics: per-class P/R/F1, ROUGE-1, BERTScore and an
-  LLM judge (1-5 on factual accuracy, cultural nuance, helpfulness).
+  LLM judge (1-5 on factual accuracy, cultural nuance, helpfulness) and the
+  proposal's success criterion, `claims_supported_rate` (target 0.90).
 
 ## Licensing
 
