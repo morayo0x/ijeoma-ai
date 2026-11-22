@@ -1,0 +1,8 @@
+# Ijeoma AI test pages. Install JAX for your hardware first:
+#   NVIDIA GPU:  pip install -U "jax[cuda12]"
+#   CPU only:    pip install -U jax
+keras>=3.10
+keras-hub>=0.21
+gradio==5.49.1
+pandas
+numpy

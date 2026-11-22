@@ -50,6 +50,8 @@ why the design gives the model its source passage every time (see
 ```
 notebooks/
   ijeoma_train_and_evaluate_v0_3.ipynb   ← train + evaluate (Colab, T4)
+  ijeoma_demo_colab.ipynb                ← launch the test pages on Colab
+app/                                     test pages: Workbench, Chat, Compare
   archive/                               earlier notebook version
 pipeline/                                builds the dataset from the raw scrape
   out/                                   ← the built dataset (ready to use)
@@ -78,6 +80,7 @@ There are four things you might want to do. Most people only need **1**.
 | **2** | Use the trained adapter without retraining | same as 1 | ~15 min |
 | **3** | Score answers with the LLM judge | Python, OpenAI API key | ~5 min |
 | **4** | Rebuild the dataset from scratch | Python, OpenAI API key | ~1 h |
+| **5** | Try it in a browser (test pages) | Colab T4 or your own GPU, HF token | ~5 min |
 
 ### Before you start: Hugging Face access to Gemma
 
@@ -214,6 +217,21 @@ Teacher output is cached per passage in `out/teacher_cache.jsonl`, so a rerun
 costs nothing; the cache from the reported run is included. To start from the
 raw scrape instead of `passages.jsonl`, run `ijeoma_clean.py` first (see
 [`pipeline/run_all.sh`](pipeline/run_all.sh)).
+
+### 5. Try it in a browser
+
+Three test pages — **Workbench** (every task), **Chat** (a conversation with the
+guide) and **Compare** (base model vs Ijeoma AI side by side). Run them on Colab
+with [`notebooks/ijeoma_demo_colab.ipynb`](notebooks/ijeoma_demo_colab.ipynb) for
+a public link, or on your own GPU:
+
+```bash
+pip install -U "jax[cuda12]" && pip install -r app/requirements.txt
+export HF_TOKEN=hf_...
+python3 app/ijeoma_app.py          # then open http://localhost:7860
+```
+
+Full instructions: [`app/README.md`](app/README.md).
 
 ---
 

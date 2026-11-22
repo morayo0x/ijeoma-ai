@@ -335,3 +335,22 @@ Status values: `active` · `superseded by D-nn` · `open`.
   source, which supports the passage-in-prompt design (D-02) and argues for
   retrieval in any deployment.
 - **Status:** active
+
+## D-23 · Browser test pages: Workbench, Chat, Compare
+- **Date:** 22 Nov 2026
+- **Decision:** A Gradio 5 app (`app/`) with three routes: `/` runs any task,
+  `/chat` holds a multi-turn conversation, `/compare` shows base Gemma 3 1B and
+  Ijeoma AI side by side. Runs on Colab with a public link
+  (`notebooks/ijeoma_demo_colab.ipynb`) or on any NVIDIA GPU machine.
+- **Choices:** Prompts are imported from the pipeline, not copied; all six
+  prompt types were checked byte-for-byte against training inputs. Sample
+  passages are 40 held-out test passages, 2–3 per country. Base and tuned
+  models are separate instances (≈4 GB each), the base loaded on first use,
+  so switching never recompiles. Generation lengths are bucketed to limit
+  recompiles. Requests are served one at a time.
+- **Tested:** pages, routing, chat history and compare layout verified in a
+  headless browser with a stub model (`--fake`). Not yet run with the real
+  model: this environment has no GPU.
+- **Proposal link:** covers part of the Hugging Face Space demo commitment;
+  the same app can be deployed to a Space.
+- **Status:** active
