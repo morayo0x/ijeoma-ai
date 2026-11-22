@@ -1,0 +1,273 @@
+"""Passage retrieval and conversation routing for the chat-only interface.
+
+The fine-tuned model answers reliably only when it is given the source passage,
+so every user message is first routed to a destination passage:
+
+1. **Name match** - the message names a destination (generic words such as
+   "national", "park" or country names are not enough on their own).
+2. **Follow-up** - no new destination is named, so the current one is kept.
+3. **Search** - a vague request ("beaches in Senegal") is matched against the
+   passages with BM25 and the best candidates are offered as numbered choices.
+4. **Out of scope** - visa, safety, health, money or booking questions with no
+   destination are answered without a passage, which the model was trained to
+   decline.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import re
+import unicodedata
+from collections import Counter
+from dataclasses import dataclass, field
+from pathlib import Path
+
+COUNTRIES = {
+    "benin", "burkina", "faso", "cape", "verde", "cabo", "ivoire", "cote", "gambia",
+    "ghana", "guinea", "bissau", "liberia", "mali", "mauritania", "niger", "nigeria",
+    "senegal", "sierra", "leone", "togo", "africa", "african", "west",
+    "nigerian", "ghanaian", "senegalese", "malian", "beninese", "togolese",
+}  # fmt: skip
+
+GENERIC = COUNTRIES | {
+    "the", "of", "and", "a", "an", "de", "la", "le", "les", "du", "des", "da", "do", "dos",
+    "national", "park", "reserve", "forest", "museum", "fort", "castle", "state", "mosque",
+    "beach", "palace", "lake", "river", "city", "town", "village", "sanctuary", "waterfalls",
+    "falls", "monument", "memorial", "art", "nature", "natural", "wildlife", "hills", "hill",
+    "game", "house", "rock", "island", "centre", "center", "cemetery", "east", "west",
+    "north", "south", "classified", "church", "cathedral", "market", "site", "area", "region",
+    "district", "grove", "sacred", "gallery", "university", "stadium", "zoo", "garden",
+    "gardens", "botanical", "mount", "mountain", "lagoon", "bay", "old", "new", "great",
+    "royal", "historic", "colonial", "slave", "museu", "musee", "parc", "praia", "monte",
+}  # fmt: skip
+
+OUT_OF_SCOPE = re.compile(
+    r"\b(visa|visas|vaccin\w*|malaria|yellow fever|safe|safety|security|danger\w*|"
+    r"border|exchange rate|currency|budget|flight\w*|airline\w*|book|booking|hotel\w*)\b",
+    re.I,
+)
+REFERS_BACK = re.compile(r"\b(it|its|it's|there|here|this place|that place|the place)\b", re.I)
+GREETING = re.compile(
+    r"^\s*(hi|hello|hey|good (morning|afternoon|evening)|thanks?|thank you)\b", re.I
+)
+
+# Common words that may be absent from the passages but are not place names.
+QUERY_WORDS = {
+    "tell", "about", "what", "whats", "where", "when", "which", "who", "how", "why", "is",
+    "are", "was", "were", "can", "could", "would", "should", "do", "does", "did", "me", "my",
+    "i", "you", "your", "please", "visit", "visiting", "see", "go", "going", "know", "show",
+    "any", "some", "there", "here", "it", "its", "this", "that", "in", "at", "to", "for",
+    "with", "on", "near", "around", "best", "good", "nice", "interesting", "places", "place",
+    "things", "thing", "recommend", "suggest", "want", "like", "travel", "trip", "tourist",
+    "tourists", "attractions", "attraction", "destinations", "destination", "anything",
+}  # fmt: skip
+
+SOURCE_LABELS = {"wikipedia": "Wikipedia", "wikivoyage": "Wikivoyage", "osm": "OpenStreetMap"}
+
+
+def normalise(text: str) -> str:
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.lower()
+
+
+def tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9']+", normalise(text).replace("'", " "))
+
+
+@dataclass
+class Destination:
+    passage_id: str
+    name: str
+    country: str
+    source: str
+    url: str
+    passage: str
+    name_tokens: tuple[str, ...] = ()
+    distinctive: frozenset[str] = frozenset()
+
+    @property
+    def label(self) -> str:
+        return f"{self.name} ({self.country})"
+
+    @property
+    def citation(self) -> str:
+        source = SOURCE_LABELS.get(self.source, self.source.title())
+        return f"[{source}: {self.name}]({self.url})" if self.url else f"{source}: {self.name}"
+
+
+@dataclass
+class Route:
+    """How to answer one message."""
+
+    kind: str  # "answer" | "choose" | "out_of_scope" | "greeting" | "not_found"
+    destination: Destination | None = None
+    choices: list[Destination] = field(default_factory=list)
+    new_topic: bool = False
+
+
+class PassageIndex:
+    """Name lookup plus BM25 search over destination passages."""
+
+    def __init__(self, destinations: list[Destination], k1: float = 1.5, b: float = 0.75):
+        self.destinations = destinations
+        self.k1, self.b = k1, b
+        self._docs = [Counter(tokens(f"{d.name} {d.name} {d.passage}")) for d in destinations]
+        self._lengths = [sum(c.values()) for c in self._docs]
+        self._avg_len = sum(self._lengths) / max(1, len(self._lengths))
+        df = Counter(t for doc in self._docs for t in doc)
+        n = len(destinations)
+        self._idf = {t: math.log(1 + (n - f + 0.5) / (f + 0.5)) for t, f in df.items()}
+
+    @classmethod
+    def from_jsonl(cls, path: str | Path) -> PassageIndex:
+        destinations = []
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                r = json.loads(line)
+                if ";" in str(r["country"]):
+                    country = str(r["country"]).replace(";", " /")
+                else:
+                    country = str(r["country"])
+                name_toks = tuple(tokens(r["name"]))
+                distinctive = frozenset(t for t in name_toks if t not in GENERIC) or frozenset(
+                    name_toks
+                )
+                destinations.append(
+                    Destination(
+                        passage_id=r["passage_id"],
+                        name=r["name"],
+                        country=country,
+                        source=str(r.get("source") or ""),
+                        url=str(r.get("url") or ""),
+                        passage=r["passage"],
+                        name_tokens=name_toks,
+                        distinctive=distinctive,
+                    )
+                )
+        return cls(destinations)
+
+    def match_names(self, message: str) -> list[Destination]:
+        """Destinations whose distinctive name words all appear in the message, best first."""
+        msg = set(tokens(message))
+        scored = []
+        for d in self.destinations:
+            if not d.distinctive or not d.distinctive <= msg:
+                continue
+            if all(len(t) < 3 for t in d.distinctive) and len(msg) > 2:
+                continue  # very short names ("Bo") only count when they are the whole message
+            matched = sum(t in msg for t in d.name_tokens)
+            full = matched == len(d.name_tokens)
+            scored.append(((matched, full, -len(d.name_tokens)), d))
+        scored.sort(key=lambda x: x[0], reverse=True)
+        if not scored:
+            return []
+        best = scored[0][0]
+        return [d for score, d in scored if score == best]
+
+    def unknown_words(self, message: str) -> list[str]:
+        """Content words that occur in no passage, e.g. places outside the corpus."""
+        return [
+            t
+            for t in tokens(message)
+            if len(t) >= 4 and t not in self._idf and t not in QUERY_WORDS and t not in GENERIC
+        ]
+
+    def search(self, message: str, k: int = 3) -> list[tuple[float, Destination]]:
+        query = [t for t in tokens(message) if t in self._idf]
+        if not query:
+            return []
+        scores = []
+        for i, doc in enumerate(self._docs):
+            norm = self.k1 * (1 - self.b + self.b * self._lengths[i] / self._avg_len)
+            s = sum(
+                self._idf[t] * doc[t] * (self.k1 + 1) / (doc[t] + norm) for t in query if t in doc
+            )
+            if s > 0:
+                scores.append((s, self.destinations[i]))
+        scores.sort(key=lambda x: x[0], reverse=True)
+        return scores[:k]
+
+
+def proper_nouns(message: str) -> set[str]:
+    """Capitalised words after the first, minus generic words: likely place names."""
+    words = re.findall(r"[A-Za-zÀ-ÿ'][\w'-]*", message)
+    found = set()
+    for w in words[1:]:
+        if w[0].isupper():
+            found.update(t for t in tokens(w) if t not in GENERIC and t not in QUERY_WORDS)
+    return found
+
+
+def mentioned_country(message: str) -> str | None:
+    msg = normalise(message)
+    for name in (
+        "burkina faso", "cape verde", "cabo verde", "cote d'ivoire", "ivory coast",
+        "guinea-bissau", "guinea bissau", "sierra leone", "the gambia", "gambia", "benin",
+        "ghana", "guinea", "liberia", "mali", "mauritania", "nigeria", "niger", "senegal", "togo",
+    ):  # fmt: skip
+        if re.search(rf"\b{re.escape(name)}\b", msg):
+            return name
+    return None
+
+
+class Router:
+    """Decides, per message, which passage (if any) the model should answer from."""
+
+    def __init__(self, index: PassageIndex, min_search_score: float = 6.0):
+        self.index = index
+        self.min_search_score = min_search_score
+
+    def route(self, message: str, topic: Destination | None, pending: list[Destination]) -> Route:
+        text = message.strip()
+
+        # A reply to a "which one did you mean?" list: a number or a name.
+        if pending:
+            if text.isdigit() and 1 <= int(text) <= len(pending):
+                return Route("answer", pending[int(text) - 1], new_topic=True)
+            for d in pending:
+                if d.distinctive <= set(tokens(text)):
+                    return Route("answer", d, new_topic=True)
+
+        if GREETING.match(text) and len(tokens(text)) <= 4:
+            return Route("greeting")
+
+        if topic and REFERS_BACK.search(text):
+            return Route("answer", topic)  # "it", "there": a follow-up on the current place
+
+        names = self.index.match_names(text)
+        if names:
+            passage_words = set(tokens(topic.passage)) if topic else set()
+            if topic and (topic in names or any(d.distinctive <= passage_words for d in names)):
+                return Route("answer", topic)  # follow-up that mentions a nearby place
+            if len(names) == 1:
+                return Route("answer", names[0], new_topic=True)
+            return Route("choose", choices=names[:5])
+
+        country = mentioned_country(text)
+        named = proper_nouns(text)
+        topic_words = set(tokens(f"{topic.name} {topic.passage}")) if topic else set()
+        new_country = bool(country and topic and country not in normalise(topic.country))
+        new_place = bool(named - topic_words)
+        if topic and not new_country and not new_place:
+            return Route("answer", topic)
+
+        if OUT_OF_SCOPE.search(text):
+            return Route("out_of_scope")
+
+        if self.index.unknown_words(text):
+            return Route("not_found")
+
+        hits = [d for s, d in self.index.search(text, k=20) if s >= self.min_search_score]
+        if named:
+            # The user named a specific place: only accept destinations bearing that name.
+            hits = [d for d in hits if named & set(d.name_tokens)]
+        if country:
+            hits = [d for d in hits if country.split()[0] in normalise(d.country)] or hits
+        hits = hits[:3]
+        if len(hits) == 1:
+            return Route("answer", hits[0], new_topic=True)
+        if hits:
+            return Route("choose", choices=hits)
+        return Route("not_found")

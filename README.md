@@ -51,7 +51,7 @@ fabricates in most cases, which is why every prompt supplies the source passage
 ## Repository structure
 
 ```
-app/                         Gradio demo: Workbench, Chat and Compare pages
+app/                         chat interface, and demo with Workbench, Chat and Compare pages
 data/raw/                    original dataset bundle
 docs/
   COLAB_DEMO.md              step-by-step guide to the Colab demo
@@ -62,10 +62,12 @@ models/
   ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz   trained LoRA adapter (5 MB)
 notebooks/
   ijeoma_train_and_evaluate_v0_3.ipynb           training and evaluation (Colab)
+  ijeoma_chat_colab.ipynb                        chat launcher (Colab)
   ijeoma_demo_colab.ipynb                        demo launcher (Colab)
   archive/                                       earlier notebook revision
 pipeline/                    dataset construction
   out/                       built dataset
+tests/                       routing tests for the chat interface
 results/
   run1_smoke/                pipeline-validation run (200 examples)
   run2_full/                 reported run (6,522 examples)
@@ -81,6 +83,7 @@ this repository.
 
 | Notebook | Purpose | Time |
 |---|---|---|
+| [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb) **Chat** | Chat-only interface: ask about any destination; sources are found and cited automatically | ~5 min |
 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb) **Demo** | Interactive Workbench, Chat and Compare pages behind a public link | ~5 min |
 | [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_train_and_evaluate_v0_3.ipynb) **Train and evaluate** | Full fine-tuning run and evaluation, reproducing the reported results | ~3 h |
 
@@ -222,6 +225,17 @@ Teacher responses are cached in `out/teacher_cache.jsonl`; with the included
 cache, a rebuild makes no API calls and reproduces the published files byte for
 byte. To start from the raw records, run `ijeoma_clean.py` first (see
 [`pipeline/run_all.sh`](pipeline/run_all.sh)).
+
+### Chat
+
+A single chat window for end users. Each question is routed to a destination
+passage before the model answers: by place name, by keyword search for broad
+requests (offering numbered choices), or kept on the current destination for
+follow-up questions. Places that are not in the corpus are reported as not
+found rather than guessed, visa, safety and similar questions are declined, and
+every answer cites its source. Launch it on Colab with
+[`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with
+`python app/chat_app.py --share`. Routing tests: `python -m pytest tests`.
 
 ### Demo
 

@@ -1,0 +1,173 @@
+"""Ijeoma AI chat: a single conversational interface with automatic passage retrieval.
+
+Users type questions about West African destinations. Each message is routed to
+a destination passage (see ``retrieval.py``), and the fine-tuned model answers
+from that passage, conditioned on the conversation so far. Every answer cites
+its source.
+
+Usage:
+    python app/chat_app.py                 # serve on http://0.0.0.0:7860
+    python app/chat_app.py --share         # also create a public gradio.live link
+    python app/chat_app.py --stub          # no model; for testing the interface
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+import gradio as gr
+
+APP_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(APP_DIR))  # allow running as a script from any directory
+
+import prompts  # noqa: E402  (needs the path set above)
+from ijeoma_build import RE_REFUSAL  # noqa: E402  (on the path via prompts)
+from retrieval import Destination, PassageIndex, Router  # noqa: E402
+
+DEFAULT_ADAPTER = APP_DIR.parent / "models" / "ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz"
+DEFAULT_PASSAGES = APP_DIR.parent / "pipeline" / "out" / "passages.jsonl"
+DEFAULT_PRESET = "hf://google/gemma-3-1b-it"
+MAX_HISTORY = 3  # previous exchanges passed to the model; training used up to two
+
+WELCOME = (
+    "Hello! I'm **Ijeoma**, a guide to places to visit in West Africa. Ask me about "
+    "a town, park, museum or historic site, for example *Kakum National Park*, "
+    "*Sukur* or *Elmina Castle*, or ask something broader like *beaches in Senegal*."
+)
+NOT_FOUND = (
+    "I couldn't find that place among the West African destinations I know about. "
+    "Try the name of a town, park, museum or historic site, for example "
+    "*Kakum National Park*, *Sukur* or *Elmina Castle*."
+)
+OUT_OF_SCOPE = (
+    "I can't advise on visas, safety, health requirements, prices or bookings: that "
+    "information changes often and is not in my sources. Please check official "
+    "government travel advice. I'm happy to tell you about places to visit."
+)
+NOTICE = (
+    "Ijeoma answers only from its source texts (Wikipedia, Wikivoyage, "
+    "OpenStreetMap) and can make mistakes. Do not rely on it for visa, safety, "
+    "health or border advice."
+)
+EXAMPLES = [
+    "Tell me about Kakum National Park",
+    "What is Sukur known for?",
+    "Beaches in Senegal",
+    "Do I need a visa for Ghana?",
+]
+
+
+def new_state() -> dict:
+    return {"topic": None, "history": [], "pending": []}
+
+
+def build_app(model, router: Router) -> gr.Blocks:
+    by_id = {d.passage_id: d for d in router.index.destinations}
+
+    def reply(message: str, state: dict) -> str:
+        topic: Destination | None = by_id.get(state["topic"]) if state["topic"] else None
+        pending = [by_id[i] for i in state["pending"]]
+        route = router.route(message, topic, pending)
+        state["pending"] = []
+
+        if route.kind == "greeting":
+            return WELCOME
+        if route.kind == "not_found":
+            return NOT_FOUND
+        if route.kind == "choose":
+            state["pending"] = [d.passage_id for d in route.choices]
+            options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
+            return f"I found a few places that might match:\n\n{options}\n\nReply with a number or a name."
+        if route.kind == "out_of_scope":
+            answer, _ = model.generate(prompts.answer(message, ""))
+            # The model was trained to decline these; fall back to a fixed reply if it does not.
+            return answer if RE_REFUSAL.search(answer) else OUT_OF_SCOPE
+
+        destination = route.destination
+        if pending and destination in pending:
+            # The user picked from a list ("2"); ask about the chosen place itself.
+            message = f"Tell me about {destination.name}."
+        if route.new_topic or state["topic"] != destination.passage_id:
+            state["topic"], state["history"] = destination.passage_id, []
+        history = [tuple(pair) for pair in state["history"][-MAX_HISTORY:]]
+        answer, _ = model.generate(prompts.dialogue(message, destination.passage, history))
+        state["history"].append([message, answer])
+        return f"{answer}\n\n<sub>Source: {destination.citation}</sub>"
+
+    def respond(message, chat, state):
+        if not (message or "").strip():
+            return "", chat, state
+        text = reply(message.strip(), state)
+        chat = [*chat, {"role": "user", "content": message}, {"role": "assistant", "content": text}]
+        return "", chat, state
+
+    with gr.Blocks(title="Ijeoma AI", theme=gr.themes.Soft()) as app:
+        gr.Markdown("# Ijeoma AI\nA guide to West African destinations.")
+        state = gr.State(new_state())
+        chat = gr.Chatbot(
+            value=[{"role": "assistant", "content": WELCOME}],
+            type="messages",
+            height=480,
+            show_label=False,
+        )
+        with gr.Row():
+            message = gr.Textbox(
+                placeholder="Ask about a place in West Africa…", show_label=False, scale=5
+            )
+            send = gr.Button("Send", variant="primary", scale=1)
+        gr.Examples(EXAMPLES, message, label="Try")
+        reset = gr.Button("New conversation", size="sm")
+        gr.Markdown(f"<sub>{NOTICE}</sub>")
+
+        message.submit(respond, [message, chat, state], [message, chat, state])
+        send.click(respond, [message, chat, state], [message, chat, state])
+        reset.click(
+            lambda: ([{"role": "assistant", "content": WELCOME}], new_state()),
+            None,
+            [chat, state],
+        )
+    return app
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--adapter", type=Path, default=DEFAULT_ADAPTER, help="LoRA weights (.npz)")
+    parser.add_argument(
+        "--passages", type=Path, default=DEFAULT_PASSAGES, help="destination passages"
+    )
+    parser.add_argument("--preset", default=DEFAULT_PRESET, help="base model preset")
+    parser.add_argument("--host", default="0.0.0.0", help="bind address (127.0.0.1 = local only)")
+    parser.add_argument("--port", type=int, default=7860)
+    parser.add_argument("--share", action="store_true", help="create a public gradio.live link")
+    parser.add_argument(
+        "--dtype",
+        default="float32",
+        choices=["float32", "bfloat16"],
+        help="model precision; bfloat16 halves GPU memory (evaluation used float32)",
+    )
+    parser.add_argument("--stub", action="store_true", help="run without a model")
+    args = parser.parse_args()
+
+    router = Router(PassageIndex.from_jsonl(args.passages))
+    if args.stub:
+        from model import StubModel
+
+        model = StubModel()
+    else:
+        if not args.adapter.exists():
+            parser.error(f"adapter not found: {args.adapter}")
+        from model import IjeomaModel
+
+        model = IjeomaModel(args.preset, str(args.adapter), dtype=args.dtype)
+
+    build_app(model, router).queue(default_concurrency_limit=1).launch(
+        server_name=args.host, server_port=args.port, share=args.share
+    )
+
+
+if __name__ == "__main__":
+    main()

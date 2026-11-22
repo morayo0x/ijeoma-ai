@@ -1,4 +1,11 @@
-# Demo application
+# Applications
+
+Two Gradio applications:
+
+- **`chat_app.py`**: a chat-only interface for end users. Each message is routed to a destination passage (`retrieval.py`), and every answer cites its source. Colab launcher: [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb). It accepts the same options as the demo below, plus `--passages`.
+- **`ijeoma_app.py`**: the evaluation demo described below.
+
+## Evaluation demo
 
 A Gradio application for interactive evaluation of Ijeoma AI.
 
@@ -70,3 +77,5 @@ function compiles. Requests are processed sequentially.
 | `ijeoma_app.py` | Page layout, event handlers and command-line interface |
 | `model.py` | Model loading, adapter restoration and generation (`IjeomaModel`, `StubModel`) |
 | `prompts.py` | Prompt builders for each task |
+| `chat_app.py` | Chat-only interface |
+| `retrieval.py` | Destination search and conversation routing for the chat (`PassageIndex`, `Router`) |
