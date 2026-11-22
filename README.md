@@ -56,6 +56,7 @@ data/raw/                    original dataset bundle
 docs/
   DECISIONS.md               design decisions, with rationale and evidence
   CODE_WALKTHROUGH.md        annotated walkthrough of the code
+  COLAB_DEMO.md              step-by-step guide to the Colab demo
   capstone-proposal-ijeoma-ai_SUBMITTED.docx
 evaluation/
   run_judge.py               LLM-judge scoring and claim-support rate
@@ -229,8 +230,9 @@ byte. To start from the raw records, run `ijeoma_clean.py` first (see
 A Gradio application with three pages: **Workbench** (any task on any passage),
 **Chat** (multi-turn conversation) and **Compare** (baseline and fine-tuned
 model side by side). On Colab, run
-[`notebooks/ijeoma_demo_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb), which prints a public link. On a
-Linux GPU host:
+[`notebooks/ijeoma_demo_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_demo_colab.ipynb), which prints a public
+link on a free T4 GPU (step-by-step guide: [`docs/COLAB_DEMO.md`](docs/COLAB_DEMO.md)).
+On a Linux GPU host:
 
 ```bash
 bash run_demo.sh                # sets up a venv, asks for the HF token, starts the app
