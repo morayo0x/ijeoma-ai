@@ -14,6 +14,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -24,7 +25,7 @@ sys.path.insert(0, str(APP_DIR))  # allow running as a script from any directory
 
 import prompts  # noqa: E402  (needs the path set above)
 from ijeoma_build import RE_REFUSAL  # noqa: E402  (on the path via prompts)
-from retrieval import Destination, PassageIndex, Router  # noqa: E402
+from retrieval import Destination, PassageIndex, Router, answer_style  # noqa: E402
 
 DEFAULT_ADAPTER = APP_DIR.parent / "models" / "ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz"
 DEFAULT_PASSAGES = APP_DIR.parent / "pipeline" / "out" / "passages.jsonl"
@@ -54,9 +55,55 @@ NOTICE = (
 EXAMPLES = [
     "Tell me about Kakum National Park",
     "What is Sukur known for?",
+    "Why should I visit Elmina Castle?",
     "Where should I visit in Ghana?",
     "Do I need a visa for Ghana?",
 ]
+
+
+SUMMARY_STYLE_KEYS = {
+    "one_line": "One sentence",
+    "notable": "What makes it notable",
+    "summary": "Short summary (2-3 sentences)",
+}
+
+
+def footer(destination: Destination) -> str:
+    parts = [f"Source: {destination.citation}"]
+    if destination.map_url:
+        parts.append(f"[View on map]({destination.map_url})")
+    return " · ".join(parts)
+
+
+def describe_labels(destination: Destination, raw: str) -> str:
+    """Render the model's classification JSON as a readable line.
+
+    Falls back to the dataset's own labels if the model output does not parse.
+    """
+    try:
+        text = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
+        labels = json.loads(text[text.index("{") : text.rindex("}") + 1])
+    except (ValueError, json.JSONDecodeError):
+        labels = {
+            "theme": destination.theme,
+            "terrain": destination.terrain or None,
+            "traveler_profile": destination.traveler_profile,
+            "world_heritage": destination.world_heritage,
+        }
+    lines = [f"**{destination.name}** ({destination.country})"]
+    if labels.get("theme"):
+        lines.append(f"- **Type of place:** {labels['theme']}")
+    if labels.get("terrain"):
+        lines.append(f"- **Setting:** {labels['terrain']}")
+    if labels.get("traveler_profile"):
+        lines.append(f"- **Best for:** {labels['traveler_profile']}")
+    heritage = labels.get("world_heritage")
+    if isinstance(heritage, str):
+        heritage = heritage.strip().lower() == "true"
+    lines.append(
+        "- **UNESCO World Heritage:** " + ("yes" if heritage else "not listed in the source")
+    )
+    return "\n".join(lines)
 
 
 def new_state() -> dict:
@@ -106,10 +153,22 @@ def build_app(model, router: Router) -> gr.Blocks:
             message = f"Tell me about {destination.name}."
         if route.new_topic or state["topic"] != destination.passage_id:
             state["topic"], state["history"] = destination.passage_id, []
-        history = [tuple(pair) for pair in state["history"][-MAX_HISTORY:]]
-        answer, _ = model.generate(prompts.dialogue(message, destination.passage, history))
+
+        style = answer_style(message)
+        if style == "classify":
+            raw, _ = model.generate(prompts.classify(destination.passage))
+            answer = describe_labels(destination, raw)
+        elif style == "digest":
+            answer, _ = model.generate(prompts.digest(destination.passage))
+        elif style in SUMMARY_STYLE_KEYS:
+            answer, _ = model.generate(
+                prompts.summarize(destination.passage, SUMMARY_STYLE_KEYS[style])
+            )
+        else:
+            history = [tuple(pair) for pair in state["history"][-MAX_HISTORY:]]
+            answer, _ = model.generate(prompts.dialogue(message, destination.passage, history))
         state["history"].append([message, answer])
-        return f"{answer}\n\n<sub>Source: {destination.citation}</sub>"
+        return f"{answer}\n\n<sub>{footer(destination)}</sub>"
 
     def respond(message, chat, state):
         if not (message or "").strip():

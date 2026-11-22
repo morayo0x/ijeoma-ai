@@ -8,7 +8,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from retrieval import PassageIndex, Router  # noqa: E402
+from retrieval import PassageIndex, Router, answer_style  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -207,3 +207,33 @@ def test_ruins_replace_waterfall_list(router):
     assert routes[1].kind == "recommend"
     first = {d.passage_id for d in routes[0].choices}
     assert not first & {d.passage_id for d in routes[1].choices}
+
+
+@pytest.mark.parametrize(
+    ("message", "style"),
+    [
+        ("Why should I visit?", "digest"),
+        ("Give me an overview", "digest"),
+        ("Sum it up in one sentence", "one_line"),
+        ("What is Sukur known for?", "notable"),
+        ("Summarise it", "summary"),
+        ("What kind of place is it?", "classify"),
+        ("Is it a World Heritage site?", "classify"),
+        ("When was it built?", "dialogue"),
+    ],
+)
+def test_answer_style(message, style):
+    assert answer_style(message) == style
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Why should I visit?", "Give me an overview", "Summarise it", "What kind of place is it?"],
+)
+def test_style_requests_stay_on_current_place(router, kakum, message):
+    route = router.route(message, kakum, [])
+    assert route.kind == "answer" and route.destination == kakum
+
+
+def test_map_link(kakum):
+    assert kakum.map_url and "openstreetmap.org" in kakum.map_url

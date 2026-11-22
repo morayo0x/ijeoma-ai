@@ -233,7 +233,11 @@ passage before the model answers: by place name; by recommendation for general
 requests ("where should I visit in Ghana?", "somewhere for wildlife"), ranked by
 UNESCO World Heritage status and theme; by keyword search for other broad
 requests; or kept on the current destination for follow-up questions. Lists are
-offered as numbered choices. Places that are not in the corpus are reported as not
+offered as numbered choices. Depending on the request, the model answers
+conversationally, writes a traveller digest ("why should I visit?"), summarises
+("in one sentence", "what is it known for?") or classifies the place ("what kind
+of place is it?"). Each reply cites its source and links to the location on
+OpenStreetMap where coordinates are available. Places that are not in the corpus are reported as not
 found rather than guessed, visa, safety and similar questions are declined, and
 every answer cites its source. Launch it on Colab with
 [`notebooks/ijeoma_chat_colab.ipynb`](https://colab.research.google.com/github/morayo0x/ijeoma-ai/blob/main/notebooks/ijeoma_chat_colab.ipynb), or locally with

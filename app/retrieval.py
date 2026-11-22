@@ -168,6 +168,47 @@ def tokens(text: str) -> list[str]:
     return re.findall(r"[a-z0-9']+", normalise(text).replace("'", " "))
 
 
+def _label(value) -> str:
+    text = str(value or "").strip()
+    return "" if text.lower() in ("", "none", "nan", "null") else text
+
+
+def _coordinate(value) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(number) else number
+
+
+# How the user wants a destination described. Checked in order; the default is
+# a conversational answer.
+ANSWER_STYLES = (
+    ("one_line", re.compile(
+        r"\b(in )?(one|a single|1) sentence\b|one[- ]liner|in a nutshell|\bbriefly\b|\btl;?dr\b", re.I)),
+    ("classify", re.compile(
+        r"what (kind|type|sort) of (place|destination|attraction|site)|"
+        r"who (is it|would it be|is this) (good|suitable|best|ideal) for|"
+        r"(is it|is this)( a)? (unesco|world heritage)|\bcategor(y|ise|ize)\b|\btags?\b|\blabels?\b", re.I)),
+    ("notable", re.compile(
+        r"(known|famous|notable|significant|special|remembered) for|what makes it|"
+        r"why is it (famous|important|significant|special)|\bsignificance\b", re.I)),
+    ("digest", re.compile(
+        r"why (should|would) (i|we|someone|anyone) (visit|go)|why (visit|go there)|"
+        r"\boverview\b|\bintroduc(e|tion)\b|\brundown\b|sell (it|this place) to me|"
+        r"(travel|traveller'?s?|visitor'?s?) (guide|digest|summary)", re.I)),
+    ("summary", re.compile(r"\bsummar(y|ise|ize)\b|\bsum (it|this|that) up\b|\brecap\b|short version", re.I)),
+)  # fmt: skip
+
+
+def answer_style(message: str) -> str:
+    """'one_line', 'classify', 'notable', 'digest', 'summary' or 'dialogue'."""
+    for style, pattern in ANSWER_STYLES:
+        if pattern.search(message):
+            return style
+    return "dialogue"
+
+
 @dataclass
 class Destination:
     passage_id: str
@@ -178,12 +219,23 @@ class Destination:
     passage: str
     theme: str = ""
     world_heritage: bool = False
+    terrain: str = ""
+    traveler_profile: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
     name_tokens: tuple[str, ...] = ()
     distinctive: frozenset[str] = frozenset()
 
     @property
     def label(self) -> str:
         return f"{self.name} ({self.country})"
+
+    @property
+    def map_url(self) -> str | None:
+        if self.latitude is None or self.longitude is None:
+            return None
+        lat, lon = self.latitude, self.longitude
+        return f"https://www.openstreetmap.org/?mlat={lat:.5f}&mlon={lon:.5f}#map=13/{lat:.5f}/{lon:.5f}"
 
     @property
     def citation(self) -> str:
@@ -239,6 +291,10 @@ class PassageIndex:
                         passage=r["passage"],
                         theme=str(r.get("theme") or ""),
                         world_heritage=str(r.get("world_heritage")) == "True",
+                        terrain=_label(r.get("terrain")),
+                        traveler_profile=_label(r.get("traveler_profile")),
+                        latitude=_coordinate(r.get("latitude")),
+                        longitude=_coordinate(r.get("longitude")),
                         name_tokens=name_toks,
                         distinctive=distinctive,
                     )
