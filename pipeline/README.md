@@ -1,3 +1,5 @@
+> **Historical note:** this README describes the pipeline as first built (template pairs only). The teacher pass has since been run on OpenAI, adding digests, abstractive QA and multi-turn dialogues. Current numbers are in the top-level README and `out/build_report.json`.
+
 # Ijeoma AI — dataset augmentation pipeline
 
 Turns the raw West Africa scrape (1,947 rows of free text) into an

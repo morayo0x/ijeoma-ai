@@ -37,7 +37,7 @@ Status values: `active` · `superseded by D-nn` · `open`.
   partly walks back the proposal's "no retrieval" architecture (§5, §7).
 - **Evidence:** Run 1 invention rate 0.95: with no passage, the model invented
   answers about fictitious places (e.g. placed "Olumbe Rock Shelters" in the
-  UK). `results/eval_adversarial_*.csv`.
+  UK). `results/run1_smoke/eval_adversarial_*.csv`.
 - **Status:** active. The report must state this as a deliberate change from
   the proposal.
 
@@ -95,7 +95,7 @@ Status values: `active` · `superseded by D-nn` · `open`.
   ROUGE-L 0.466 → 0.389, refusal recall 1.0, invention rate 0.95.
 - **Note:** The log holds three identical rows: the same configuration was run
   three times. Treat them as one data point.
-- **Evidence:** `results/ijeoma_experiment_log.csv`.
+- **Evidence:** `results/run1_smoke/ijeoma_experiment_log.csv`.
 - **Status:** active (baseline for comparison)
 
 ## D-08 · Separate Ijeoma AI from the Quanta AI repository
@@ -114,7 +114,7 @@ Status values: `active` · `superseded by D-nn` · `open`.
 - **Alternative rejected:** Fuzzy-matching labels at scoring time. It would hide
   the problem rather than fix it, and a catalogue needs the exact label.
 - **Trade-off:** Classify prompts are ~120 tokens longer, so training is slightly slower.
-- **Evidence:** `results/eval_tuned_*.csv` (`pred_theme` vs `true_theme`);
+- **Evidence:** `results/run1_smoke/eval_tuned_*.csv` (`pred_theme` vs `true_theme`);
   `pipeline/ijeoma_pairs.py` (`LABEL_MENU`).
 - **Status:** active
 
