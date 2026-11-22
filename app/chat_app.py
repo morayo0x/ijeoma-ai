@@ -273,6 +273,9 @@ def main() -> None:
     parser.add_argument(
         "--passages", type=Path, default=DEFAULT_PASSAGES, help="destination passages"
     )
+    parser.add_argument(
+        "--guides", type=Path, default=DEFAULT_GUIDES, help="country guide passages"
+    )
     parser.add_argument("--preset", default=DEFAULT_PRESET, help="base model preset")
     parser.add_argument("--host", default="0.0.0.0", help="bind address (127.0.0.1 = local only)")
     parser.add_argument("--port", type=int, default=7860)
