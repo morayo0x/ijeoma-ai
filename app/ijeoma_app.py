@@ -214,6 +214,12 @@ def main() -> None:
     parser.add_argument(
         "--preload-base", action="store_true", help="load the base model at start-up"
     )
+    parser.add_argument(
+        "--dtype",
+        default="float32",
+        choices=["float32", "bfloat16"],
+        help="model precision; bfloat16 halves GPU memory (evaluation used float32)",
+    )
     parser.add_argument("--stub", action="store_true", help="run without a model")
     args = parser.parse_args()
 
@@ -226,7 +232,7 @@ def main() -> None:
             parser.error(f"adapter not found: {args.adapter}")
         from model import IjeomaModel
 
-        model = IjeomaModel(args.preset, str(args.adapter))
+        model = IjeomaModel(args.preset, str(args.adapter), dtype=args.dtype)
         if args.preload_base:
             model.ensure_loaded("base")
 

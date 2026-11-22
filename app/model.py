@@ -52,8 +52,11 @@ def extract_reply(generated: str, prompt: str) -> str:
 class IjeomaModel:
     """Gemma 3 1B with and without the Ijeoma AI LoRA adapter."""
 
-    def __init__(self, preset: str, adapter_path: str, lora_rank: int = 8) -> None:
+    def __init__(
+        self, preset: str, adapter_path: str, lora_rank: int = 8, dtype: str = "float32"
+    ) -> None:
         self.preset = preset
+        self.dtype = dtype
         self.adapter_path = adapter_path
         self.lora_rank = lora_rank
         self._lock = threading.Lock()
@@ -64,7 +67,7 @@ class IjeomaModel:
         import numpy as np
 
         started = time.time()
-        model = keras_hub.models.Gemma3CausalLM.from_preset(self.preset)
+        model = keras_hub.models.Gemma3CausalLM.from_preset(self.preset, dtype=self.dtype)
         if with_adapter:
             model.backbone.enable_lora(rank=self.lora_rank)
             archive = np.load(self.adapter_path)
@@ -73,7 +76,7 @@ class IjeomaModel:
             for weight in model.weights:
                 key = getattr(weight, "path", None) or weight.name
                 if key in saved:
-                    weight.assign(saved[key])
+                    weight.assign(saved[key].astype(weight.dtype))
                     loaded += 1
             if loaded != len(saved):
                 raise RuntimeError(

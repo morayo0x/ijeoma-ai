@@ -53,6 +53,7 @@ port 7860 on all interfaces; open `http://localhost:7860`, or
 | `--port N` | `7860` | Port |
 | `--share` | off | Create a public `gradio.live` URL |
 | `--preload-base` | off | Load the baseline model at start-up rather than on first comparison |
+| `--dtype` | `float32` | `bfloat16` halves GPU memory; the reported evaluation used `float32` |
 | `--stub` | off | Run without a model, for interface testing |
 
 ## Resource use
