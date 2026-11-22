@@ -316,4 +316,4 @@ derived dataset is shared under CC BY-SA 4.0. Model use is governed by the
 
 ## Team
 
-John Hicks · Prof Chika Yinka-Banjo · Usman Kolawole (University of Lagos)
+Prof Chika Yinka-Banjo · John Hicks · Usman Kolawole (University of Lagos)
