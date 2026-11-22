@@ -15,7 +15,9 @@ import time
 from typing import Literal
 
 os.environ.setdefault("KERAS_BACKEND", "jax")
-os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.90")
+# Allocate GPU memory on demand rather than reserving most of the card up front,
+# so the demo can share a GPU with other processes.
+os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 Variant = Literal["ijeoma", "base"]
 
