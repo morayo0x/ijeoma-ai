@@ -55,7 +55,6 @@ app/                         Gradio demo: Workbench, Chat and Compare pages
 data/raw/                    original dataset bundle
 docs/
   DECISIONS.md               design decisions, with rationale and evidence
-  CODE_WALKTHROUGH.md        annotated walkthrough of the code
   COLAB_DEMO.md              step-by-step guide to the Colab demo
   capstone-proposal-ijeoma-ai_SUBMITTED.docx
 evaluation/
