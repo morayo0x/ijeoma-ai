@@ -25,7 +25,14 @@ sys.path.insert(0, str(APP_DIR))  # allow running as a script from any directory
 
 import prompts  # noqa: E402  (needs the path set above)
 from ijeoma_build import RE_REFUSAL  # noqa: E402  (on the path via prompts)
-from retrieval import Destination, PassageIndex, Router, answer_style  # noqa: E402
+from retrieval import (  # noqa: E402
+    Destination,
+    PassageIndex,
+    Router,
+    answer_style,
+    describe_custom,
+    looks_like_description,
+)
 
 DEFAULT_ADAPTER = APP_DIR.parent / "models" / "ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz"
 DEFAULT_PASSAGES = APP_DIR.parent / "pipeline" / "out" / "passages.jsonl"
@@ -35,7 +42,8 @@ MAX_HISTORY = 3  # previous exchanges passed to the model; training used up to t
 WELCOME = (
     "Hello! I'm **Ijeoma**, a guide to places to visit in West Africa. Ask me about "
     "a town, park, museum or historic site, for example *Kakum National Park*, "
-    "*Sukur* or *Elmina Castle*, or ask for ideas, like *where should I visit in Ghana?*"
+    "*Sukur* or *Elmina Castle*, or ask for ideas, like *where should I visit in Ghana?* "
+    "You can also paste a description of a place I don't know, and I'll work from that."
 )
 NOT_FOUND = (
     "I couldn't find that place among the West African destinations I know about. "
@@ -90,7 +98,9 @@ def describe_labels(destination: Destination, raw: str) -> str:
             "traveler_profile": destination.traveler_profile,
             "world_heritage": destination.world_heritage,
         }
-    lines = [f"**{destination.name}** ({destination.country})"]
+    lines = [f"**{destination.label}**"]
+    if destination.source == "user" and labels.get("country"):
+        lines = [f"**{destination.name}** ({labels['country']})"]
     if labels.get("theme"):
         lines.append(f"- **Type of place:** {labels['theme']}")
     if labels.get("terrain"):
@@ -107,14 +117,21 @@ def describe_labels(destination: Destination, raw: str) -> str:
 
 
 def new_state() -> dict:
-    return {"topic": None, "history": [], "pending": []}
+    return {"topic": None, "history": [], "pending": [], "custom": None}
 
 
 def build_app(model, router: Router) -> gr.Blocks:
     by_id = {d.passage_id: d for d in router.index.destinations}
 
+    def current_topic(state: dict) -> Destination | None:
+        if state["topic"] == "custom" and state["custom"]:
+            return describe_custom(state["custom"])
+        return by_id.get(state["topic"]) if state["topic"] else None
+
     def reply(message: str, state: dict) -> str:
-        topic: Destination | None = by_id.get(state["topic"]) if state["topic"] else None
+        if looks_like_description(message):
+            return read_description(message, state)
+        topic = current_topic(state)
         pending = [by_id[i] for i in state["pending"]]
         route = router.route(message, topic, pending)
         state["pending"] = []
@@ -153,6 +170,8 @@ def build_app(model, router: Router) -> gr.Blocks:
             message = f"Tell me about {destination.name}."
         if route.new_topic or state["topic"] != destination.passage_id:
             state["topic"], state["history"] = destination.passage_id, []
+            if destination.passage_id != "custom":
+                state["custom"] = None
 
         style = answer_style(message)
         if style == "classify":
@@ -169,6 +188,24 @@ def build_app(model, router: Router) -> gr.Blocks:
             answer, _ = model.generate(prompts.dialogue(message, destination.passage, history))
         state["history"].append([message, answer])
         return f"{answer}\n\n<sub>{footer(destination)}</sub>"
+
+    def read_description(text: str, state: dict) -> str:
+        """A pasted description of a new place: classify it and write a digest."""
+        destination = describe_custom(text)
+        state.update(new_state())
+        state["topic"], state["custom"] = "custom", destination.passage
+        raw, _ = model.generate(prompts.classify(destination.passage))
+        digest, _ = model.generate(prompts.digest(destination.passage))
+        state["history"].append(["Tell me about this place.", digest])
+        note = ""
+        if len(text.strip()) > len(destination.passage):
+            note = "\n\n<sub>Only the first part of a long description was used.</sub>"
+        return (
+            "Here's what I make of the place you described.\n\n"
+            f"{describe_labels(destination, raw)}\n\n**Why visit:** {digest}\n\n"
+            "Ask me anything about it, or ask about another place."
+            f"{note}\n\n<sub>{footer(destination)}</sub>"
+        )
 
     def respond(message, chat, state):
         if not (message or "").strip():

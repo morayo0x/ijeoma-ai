@@ -201,6 +201,35 @@ ANSWER_STYLES = (
 )  # fmt: skip
 
 
+MAX_DESCRIPTION_CHARS = 5000  # keeps prompt plus answer within the model's context
+
+
+def looks_like_description(message: str) -> bool:
+    """True for a pasted description of a place: long, in sentences, not a question."""
+    text = message.strip()
+    sentences = [x for x in re.split(r"(?<=[.!])\s+", text) if len(x.split()) >= 4]
+    return len(text.split()) >= 40 and len(sentences) >= 2 and not text.endswith("?")
+
+
+def describe_custom(text: str) -> Destination:
+    """Wrap a user-supplied description as a destination the model can answer from."""
+    text = text.strip()[:MAX_DESCRIPTION_CHARS]
+    first = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0]
+    match = re.match(r"^(?:The )?(.{3,60}?)\s+(?:is|are|was|were|lies|sits|stands)\b", first)
+    name = match.group(1).strip(" ,") if match else "this place"
+    name_toks = tuple(tokens(name))
+    return Destination(
+        passage_id="custom",
+        name=name,
+        country="",
+        source="user",
+        url="",
+        passage=text,
+        name_tokens=name_toks,
+        distinctive=frozenset(t for t in name_toks if t not in GENERIC) or frozenset(name_toks),
+    )
+
+
 def answer_style(message: str) -> str:
     """'one_line', 'classify', 'notable', 'digest', 'summary' or 'dialogue'."""
     for style, pattern in ANSWER_STYLES:
@@ -228,7 +257,7 @@ class Destination:
 
     @property
     def label(self) -> str:
-        return f"{self.name} ({self.country})"
+        return f"{self.name} ({self.country})" if self.country else self.name
 
     @property
     def map_url(self) -> str | None:
@@ -239,6 +268,8 @@ class Destination:
 
     @property
     def citation(self) -> str:
+        if self.source == "user":
+            return "your description"
         source = SOURCE_LABELS.get(self.source, self.source.title())
         return f"[{source}: {self.name}]({self.url})" if self.url else f"{source}: {self.name}"
 

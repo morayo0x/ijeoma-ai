@@ -8,7 +8,13 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "app"))
 
-from retrieval import PassageIndex, Router, answer_style  # noqa: E402
+from retrieval import (  # noqa: E402
+    PassageIndex,
+    Router,
+    answer_style,
+    describe_custom,
+    looks_like_description,
+)
 
 
 @pytest.fixture(scope="module")
@@ -237,3 +243,31 @@ def test_style_requests_stay_on_current_place(router, kakum, message):
 
 def test_map_link(kakum):
     assert kakum.map_url and "openstreetmap.org" in kakum.map_url
+
+
+LEKKI = (
+    "The Lekki Conservation Centre is a nature reserve in Lagos, Nigeria, run by the Nigerian "
+    "Conservation Foundation. It covers 78 hectares of wetland and forest along the Lekki "
+    "Peninsula and protects mangroves, monkeys, crocodiles and many bird species. Visitors walk "
+    "along raised boardwalks through the forest, and the centre has a canopy walkway about "
+    "401 metres long."
+)
+
+
+def test_pasted_description_is_detected():
+    assert looks_like_description(LEKKI)
+    assert not looks_like_description("Tell me about Kakum National Park")
+    assert not looks_like_description(
+        "What is the longest canopy walkway in Africa and where can I find it and how high is "
+        "it above the forest floor in metres, and is it open to visitors every day of the week?"
+    )
+
+
+def test_pasted_description_becomes_the_topic(router):
+    place = describe_custom(LEKKI)
+    assert place.name == "Lekki Conservation Centre"
+    assert place.citation == "your description"
+    for question in ("How long is the canopy walkway?", "Why should I visit?"):
+        route = router.route(question, place, [])
+        assert route.kind == "answer" and route.destination.passage_id == "custom"
+    assert router.route("Tell me about Sukur", place, []).destination.name == "Sukur"
