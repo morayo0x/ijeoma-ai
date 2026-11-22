@@ -67,6 +67,18 @@ QUERY_WORDS = {
     "a", "an", "and", "or", "but", "so", "then", "thats", "that's", "be", "of",
 }  # fmt: skip
 
+INTRODUCTION = re.compile(
+    r"^\s*(?:hi|hello|hey)?[,!.]?\s*(?:my name is|my name's|my name|call me|i am|i'm|im|this is)\s+"
+    r"([A-Za-zÀ-ÿ][\w'-]{1,30})\s*[.!]?\s*$",
+    re.I,
+)
+DESCRIBE_EACH = re.compile(
+    r"\b(descri\w*\s+(?:of\s+)?(?:each|them|all|these|those|every)|"
+    r"(?:a|some)?\s*descriptions?\s+(?:of|for)\s+(?:each|them|all|these|those)|"
+    r"with\s+(?:a\s+|short\s+)?descriptions?|tell me (?:more )?about (?:each|them|all of them|these|those)|"
+    r"(?:each|every) (?:one|of them))\b",
+    re.I,
+)
 ABOUT_COUNTRY = re.compile(
     r"\b(tell me (about|more about)|what is|what's|describe|overview|introduc\w*|information|info|"
     r"learn about|know about)\b",
@@ -345,13 +357,14 @@ class Destination:
 class Route:
     """How to answer one message."""
 
-    kind: str  # answer | fact | fact_missing | which_place | choose | recommend
+    kind: str  # answer | fact | fact_missing | which_place | choose | recommend | describe_list | introduce
     #             out_of_scope | live | greeting | thanks | reset | not_found
     destination: Destination | None = None
     choices: list[Destination] = field(default_factory=list)
     new_topic: bool = False
     facet: str | None = None  # for "fact" and "fact_missing": language or climate
-    place: str = ""  # for "fact_missing": the country or place asked about
+    place: str = ""  # "fact_missing": the country or place asked; "introduce": the user's name
+    describe: bool = False  # for lists: the user asked for a description of each item
 
 
 class PassageIndex:
@@ -478,6 +491,33 @@ def requested_themes(message: str) -> set[str]:
     if themes & {"Historic Site"}:
         themes.update(THEME_GROUPS["history"])
     return themes
+
+
+ABBREVIATION = re.compile(r"\b(St|Ste|Mt|Ft|Dr|Mr|Mrs|Ms|No|Vol|ca|approx|e\.g|i\.e|c)\.$", re.I)
+
+
+def first_sentence(text: str) -> str:
+    """The first sentence, not fooled by abbreviations such as "Fort St. George"."""
+    parts = re.split(r"(?<=[.!?])\s+", text.strip())
+    sentence = ""
+    for part in parts:
+        sentence = f"{sentence} {part}".strip()
+        if not ABBREVIATION.search(sentence):
+            break
+    return sentence
+
+
+def preview(destination: Destination, max_words: int = 28) -> str:
+    """A short, extractive description: the passage's first sentence without asides."""
+    text = re.sub(r"\s*\[[^\]]*\]", "", destination.passage)  # […], which may sit inside (…)
+    text = re.sub(r"\s*\([^)]*\)", "", text)
+    text = re.sub(r"\s+([,.;:])", r"\1", text)
+    words = first_sentence(text).split()
+    return (
+        " ".join(words)
+        if len(words) <= max_words
+        else " ".join(words[:max_words]).rstrip(",;:") + "…"
+    )
 
 
 def requested_subjects(message: str) -> set[str]:
@@ -665,6 +705,14 @@ class Router:
         if RESET.search(text):
             return Route("reset")
 
+        intro = INTRODUCTION.match(text)
+        if intro and not self.index.match_names(intro.group(1)):
+            return Route("introduce", place=intro.group(1).capitalize())
+
+        describe = bool(DESCRIBE_EACH.search(text))
+        if pending and describe and not (requested_themes(text) or requested_subjects(text)):
+            return Route("describe_list", choices=pending, describe=True)
+
         # A reply to a "which one did you mean?" list: a number or a name.
         if pending:
             if text.isdigit() and 1 <= int(text) <= len(pending):
@@ -750,7 +798,7 @@ class Router:
                 country = normalise(topic.country)  # "anything else interesting?" near here
             picks = self.recommend(country, themes, subjects)
             if picks:
-                return Route("recommend", choices=picks)
+                return Route("recommend", choices=picks, describe=describe)
 
         if topic and not new_country and not new_place:
             return Route("answer", topic)
@@ -770,5 +818,5 @@ class Router:
         if len(hits) == 1:
             return Route("answer", hits[0], new_topic=True)
         if hits:
-            return Route("choose", choices=hits)
+            return Route("choose", choices=hits, describe=describe)
         return Route("not_found")

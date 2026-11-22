@@ -33,6 +33,7 @@ from retrieval import (  # noqa: E402
     describe_custom,
     load_country_guides,
     looks_like_description,
+    preview,
 )
 
 DEFAULT_ADAPTER = APP_DIR.parent / "models" / "ijeoma_lora_gemma-3-1b-it-r8-lr0.0002-e1.npz"
@@ -121,7 +122,7 @@ def describe_labels(destination: Destination, raw: str) -> str:
 
 
 def new_state() -> dict:
-    return {"topic": None, "history": [], "pending": [], "custom": None}
+    return {"topic": None, "history": [], "pending": [], "custom": None, "user_name": None}
 
 
 def build_app(model, router: Router) -> gr.Blocks:
@@ -133,6 +134,21 @@ def build_app(model, router: Router) -> gr.Blocks:
             return describe_custom(state["custom"])
         return by_id.get(state["topic"]) if state["topic"] else None
 
+    def format_list(route) -> str:
+        """Numbered list; each item gets a one-sentence description.
+
+        By default the description is the passage's opening sentence (instant). When
+        the user asks for a description of each, the model writes one per place.
+        """
+        items = []
+        for i, d in enumerate(route.choices, 1):
+            if route.describe:
+                text, _ = model.generate(prompts.summarize(d.passage, "One sentence"))
+            else:
+                text = preview(d)
+            items.append(f"{i}. **{d.label}**: {text}")
+        return "\n".join(items)
+
     def reply(message: str, state: dict) -> str:
         if looks_like_description(message):
             return read_description(message, state)
@@ -141,10 +157,20 @@ def build_app(model, router: Router) -> gr.Blocks:
         route = router.route(message, topic, pending)
         state["pending"] = []
 
+        if route.kind == "introduce":
+            state["user_name"] = route.place
+            return (
+                f"Nice to meet you, {route.place}! Ask me about a place in West Africa, or ask "
+                "for ideas, like *where should I visit in Ghana?*"
+            )
         if route.kind == "reset":
+            name = state.get("user_name")
             state.update(new_state())
+            state["user_name"] = name
             return "Sure, let's start again. " + WELCOME.split("! ", 1)[1]
         if route.kind == "greeting":
+            if state.get("user_name"):
+                return f"Hello again, {state['user_name']}! " + WELCOME.split("! ", 1)[1]
             return WELCOME
         if route.kind == "thanks":
             return "You're welcome! Ask me about another place whenever you like."
@@ -154,16 +180,20 @@ def build_app(model, router: Router) -> gr.Blocks:
             # A new kind of place was requested: let go of the previous destination.
             state["topic"], state["history"] = None, []
             state["pending"] = [d.passage_id for d in route.choices]
-            options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
             return (
-                f"Here are some places worth exploring:\n\n{options}\n\n"
+                f"Here are some places worth exploring:\n\n{format_list(route)}\n\n"
                 "Reply with a number or a name to hear more, or ask about a country or a "
                 "kind of place (beaches, wildlife, history, museums)."
             )
         if route.kind == "choose":
             state["pending"] = [d.passage_id for d in route.choices]
-            options = "\n".join(f"{i}. {d.label}" for i, d in enumerate(route.choices, 1))
-            return f"I found a few places that might match:\n\n{options}\n\nReply with a number or a name."
+            return (
+                f"I found a few places that might match:\n\n{format_list(route)}\n\n"
+                "Reply with a number or a name."
+            )
+        if route.kind == "describe_list":
+            state["pending"] = [d.passage_id for d in route.choices]
+            return f"{format_list(route)}\n\nReply with a number or a name to hear more."
         if route.kind == "live":
             return (
                 "I don't have live weather. For today's conditions or a forecast, please check "

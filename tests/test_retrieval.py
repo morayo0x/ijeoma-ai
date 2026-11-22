@@ -350,3 +350,23 @@ def test_place_without_facet_uses_its_country_guide(guided):
     kakum = guided.route("Tell me about Kakum National Park", None, []).destination
     route = guided.route("What language do they speak there?", kakum, [])
     assert route.kind == "fact" and route.destination.passage_id == "country-ghana-language"
+
+
+@pytest.mark.parametrize(
+    ("message", "name"),
+    [("my name morayo", "Morayo"), ("My name is Morayo", "Morayo"), ("call me Tunde", "Tunde")],
+)
+def test_introductions(router, message, name):
+    route = router.route(message, None, [])
+    assert route.kind == "introduce" and route.place == name
+
+
+def test_description_of_each_is_honoured(router):
+    route = router.route("give me ruins to visit and a description of each", None, [])
+    assert route.kind == "recommend" and route.describe
+    follow_up = router.route("describe them", None, route.choices)
+    assert follow_up.kind == "describe_list" and follow_up.choices == route.choices
+
+
+def test_plain_lists_are_not_described_by_the_model(router):
+    assert not router.route("where are interesting places to visit?", None, []).describe
