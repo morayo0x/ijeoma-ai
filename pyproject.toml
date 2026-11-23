@@ -1,6 +1,6 @@
 [project]
 name = "ijeoma-ai"
-version = "0.3.0"
+version = "0.4.0"
 description = "Grounded West African destination assistant: Gemma 3 1B fine-tuned with LoRA."
 readme = "README.md"
 requires-python = ">=3.10"
